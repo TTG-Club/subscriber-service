@@ -1,0 +1,33 @@
+databaseChangeLog:
+  - changeSet:
+      id: 006-create-reward-resource
+      author: claude
+      changes:
+        - createTable:
+            schemaName: subscriber
+            tableName: reward_resource
+            columns:
+              - column:
+                  name: perk
+                  type: VARCHAR(48)
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_reward_resource
+              - column:
+                  name: title
+                  type: VARCHAR(255)
+              - column:
+                  name: url
+                  type: VARCHAR(1024)
+              - column:
+                  name: availability
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: note
+                  type: VARCHAR(1024)
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE

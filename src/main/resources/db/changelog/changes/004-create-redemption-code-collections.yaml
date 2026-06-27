@@ -1,0 +1,66 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-create-redemption-code-perk
+      author: claude
+      changes:
+        - createTable:
+            schemaName: subscriber
+            tableName: redemption_code_perk
+            columns:
+              - column:
+                  name: code_uuid
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: perk
+                  type: VARCHAR(48)
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            schemaName: subscriber
+            tableName: redemption_code_perk
+            columnNames: code_uuid, perk
+            constraintName: pk_redemption_code_perk
+        - addForeignKeyConstraint:
+            baseTableSchemaName: subscriber
+            baseTableName: redemption_code_perk
+            baseColumnNames: code_uuid
+            constraintName: fk_redemption_code_perk_on_code
+            referencedTableSchemaName: subscriber
+            referencedTableName: redemption_code
+            referencedColumnNames: uuid
+            onDelete: CASCADE
+
+  - changeSet:
+      id: 004-create-redemption-code-achievement
+      author: claude
+      changes:
+        - createTable:
+            schemaName: subscriber
+            tableName: redemption_code_achievement
+            columns:
+              - column:
+                  name: code_uuid
+                  type: UUID
+                  constraints:
+                    nullable: false
+              - column:
+                  name: achievement_code
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+        - addPrimaryKey:
+            schemaName: subscriber
+            tableName: redemption_code_achievement
+            columnNames: code_uuid, achievement_code
+            constraintName: pk_redemption_code_achievement
+        - addForeignKeyConstraint:
+            baseTableSchemaName: subscriber
+            baseTableName: redemption_code_achievement
+            baseColumnNames: code_uuid
+            constraintName: fk_redemption_code_achievement_on_code
+            referencedTableSchemaName: subscriber
+            referencedTableName: redemption_code
+            referencedColumnNames: uuid
+            onDelete: CASCADE

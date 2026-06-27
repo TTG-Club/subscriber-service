@@ -1,0 +1,69 @@
+databaseChangeLog:
+  - changeSet:
+      id: 003-create-redemption-code
+      author: claude
+      changes:
+        - createTable:
+            schemaName: subscriber
+            tableName: redemption_code
+            columns:
+              - column:
+                  name: uuid
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_redemption_code
+              - column:
+                  name: code
+                  type: VARCHAR(64)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: subscription_type
+                  type: VARCHAR(32)
+              - column:
+                  name: subscription_months
+                  type: INT
+              - column:
+                  name: reward_tier
+                  type: VARCHAR(32)
+              - column:
+                  name: label
+                  type: VARCHAR(255)
+              - column:
+                  name: redeemed_by
+                  type: VARCHAR(255)
+              - column:
+                  name: redeemed_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: disabled
+                  type: BOOLEAN
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+              - column:
+                  name: disabled_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: disabled_by
+                  type: VARCHAR(255)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - addUniqueConstraint:
+            schemaName: subscriber
+            tableName: redemption_code
+            columnNames: code
+            constraintName: uc_redemption_code_code
+        - createIndex:
+            schemaName: subscriber
+            tableName: redemption_code
+            indexName: idx_redemption_code_redeemed_by
+            columns:
+              - column:
+                  name: redeemed_by

@@ -1,0 +1,65 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-create-user-subscription
+      author: claude
+      changes:
+        - createTable:
+            schemaName: subscriber
+            tableName: user_subscription
+            columns:
+              - column:
+                  name: uuid
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_user_subscription
+              - column:
+                  name: type
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: duration_months
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: owner_username
+                  type: VARCHAR(255)
+              - column:
+                  name: source_code
+                  type: UUID
+              - column:
+                  name: registered_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: starts_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: expires_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - createIndex:
+            schemaName: subscriber
+            tableName: user_subscription
+            indexName: idx_user_subscription_owner
+            columns:
+              - column:
+                  name: owner_username
+        - createIndex:
+            schemaName: subscriber
+            tableName: user_subscription
+            indexName: idx_user_subscription_owner_active
+            columns:
+              - column:
+                  name: owner_username
+              - column:
+                  name: starts_at
+              - column:
+                  name: expires_at

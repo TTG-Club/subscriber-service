@@ -1,0 +1,125 @@
+databaseChangeLog:
+  - changeSet:
+      id: 007-seed-reward-resource
+      author: claude
+      changes:
+        - insert:
+            schemaName: subscriber
+            tableName: reward_resource
+            columns:
+              - column:
+                  name: perk
+                  value: EARLY_ACCESS_DOWNLOAD
+              - column:
+                  name: title
+                  value: Ранний доступ к скачиванию
+              - column:
+                  name: availability
+                  value: AVAILABLE
+        - insert:
+            schemaName: subscriber
+            tableName: reward_resource
+            columns:
+              - column:
+                  name: perk
+                  value: MAP_TOKENS_DOWNLOAD
+              - column:
+                  name: title
+                  value: Карты и токены
+              - column:
+                  name: availability
+                  value: AVAILABLE
+        - insert:
+            schemaName: subscriber
+            tableName: reward_resource
+            columns:
+              - column:
+                  name: perk
+                  value: ADVENTURE_DOWNLOAD
+              - column:
+                  name: title
+                  value: Приключение
+              - column:
+                  name: availability
+                  value: COMING_SOON
+              - column:
+                  name: note
+                  value: Будет готово ближе к релизу
+        - insert:
+            schemaName: subscriber
+            tableName: reward_resource
+            columns:
+              - column:
+                  name: perk
+                  value: DEV_CHAT_ACCESS
+              - column:
+                  name: title
+                  value: Приватный чат разработки
+              - column:
+                  name: availability
+                  value: AVAILABLE
+        - insert:
+            schemaName: subscriber
+            tableName: reward_resource
+            columns:
+              - column:
+                  name: perk
+                  value: PROFILE_BADGE
+              - column:
+                  name: title
+                  value: Уникальный значок профиля
+              - column:
+                  name: availability
+                  value: AVAILABLE
+        - insert:
+            schemaName: subscriber
+            tableName: reward_resource
+            columns:
+              - column:
+                  name: perk
+                  value: AVATAR_FRAME
+              - column:
+                  name: title
+                  value: Уникальная рамка аватара
+              - column:
+                  name: availability
+                  value: AVAILABLE
+        - insert:
+            schemaName: subscriber
+            tableName: reward_resource
+            columns:
+              - column:
+                  name: perk
+                  value: NICKNAME_COLOR
+              - column:
+                  name: title
+                  value: Особый цвет никнейма
+              - column:
+                  name: availability
+                  value: AVAILABLE
+        - insert:
+            schemaName: subscriber
+            tableName: reward_resource
+            columns:
+              - column:
+                  name: perk
+                  value: PROFILE_ICON
+              - column:
+                  name: title
+                  value: Набор иконок профиля
+              - column:
+                  name: availability
+                  value: AVAILABLE
+        - insert:
+            schemaName: subscriber
+            tableName: reward_resource
+            columns:
+              - column:
+                  name: perk
+                  value: APP_CREDITS
+              - column:
+                  name: title
+                  value: Упоминание в приложении
+              - column:
+                  name: availability
+                  value: AVAILABLE

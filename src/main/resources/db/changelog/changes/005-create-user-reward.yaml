@@ -1,0 +1,46 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-create-user-reward
+      author: claude
+      changes:
+        - createTable:
+            schemaName: subscriber
+            tableName: user_reward
+            columns:
+              - column:
+                  name: uuid
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_user_reward
+              - column:
+                  name: username
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: perk
+                  type: VARCHAR(48)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: granted_at
+                  type: TIMESTAMP WITH TIME ZONE
+                  constraints:
+                    nullable: false
+              - column:
+                  name: source_code
+                  type: UUID
+        - addUniqueConstraint:
+            schemaName: subscriber
+            tableName: user_reward
+            columnNames: username, perk
+            constraintName: uc_user_reward_username_perk
+        - createIndex:
+            schemaName: subscriber
+            tableName: user_reward
+            indexName: idx_user_reward_perk
+            columns:
+              - column:
+                  name: perk

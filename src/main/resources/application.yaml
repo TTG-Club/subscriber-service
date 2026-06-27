@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: ttg-subscriber
+  main:
+    banner-mode: off
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: ${DB_POOL_SIZE:10}
+      minimum-idle: ${DB_MIN_IDLE:2}
+      idle-timeout: 30000
+      connection-timeout: 20000
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        default_schema: subscriber
+        format_sql: false
+        jdbc:
+          lob:
+            non_contextual_creation: true
+
+  liquibase:
+    enabled: true
+    change-log: classpath:/db/changelog/db.changelog-master.yaml
+
+app:
+  frontend-base-url: http://localhost:3000
+  allowed-frontend-origins: ${APP_ALLOWED_FRONTEND_ORIGINS:}
+
+server:
+  port: ${SERVER_PORT:8083}
+
+auth-service:
+  jwt-secret: ${AUTH_SERVICE_JWT_SECRET}
+
+internal:
+  service-secret: ${INTERNAL_SERVICE_SECRET}
+
+core-api:
+  base-url: ${CORE_API_URL:http://core-api:8080}
+
+springdoc:
+  api-docs:
+    enabled: ${SPRINGDOC_ENABLED:false}
+    path: /v3/api-docs
+  swagger-ui:
+    enabled: ${SPRINGDOC_ENABLED:false}
+    path: /swagger-ui.html
+    display-request-duration: true
+    try-it-out-enabled: true
+
+logging:
+  level:
+    root: INFO
+    org.springframework.security: INFO
