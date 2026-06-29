@@ -47,6 +47,8 @@ internal:
 
 core-api:
   base-url: ${CORE_API_URL:http://core-api:8080}
+  connect-timeout: ${CORE_API_CONNECT_TIMEOUT:2s}
+  read-timeout: ${CORE_API_READ_TIMEOUT:3s}
 
 springdoc:
   api-docs:

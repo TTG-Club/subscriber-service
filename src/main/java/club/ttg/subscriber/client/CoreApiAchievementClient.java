@@ -30,23 +30,26 @@ public class CoreApiAchievementClient {
     public CoreApiAchievementClient(
             RestClient.Builder restClientBuilder,
             @Value("${core-api.base-url}") String coreApiBaseUrl,
+            @Value("${core-api.connect-timeout:2s}") Duration connectTimeout,
+            @Value("${core-api.read-timeout:3s}") Duration readTimeout,
             @Value("${internal.service-secret}") String serviceSecret
     ) {
         this.restClient = restClientBuilder
                 .baseUrl(coreApiBaseUrl)
-                .requestFactory(requestFactory())
+                .requestFactory(requestFactory(connectTimeout, readTimeout))
                 .build();
         this.serviceSecret = serviceSecret;
     }
 
     /**
      * Фабрика с конечными таймаутами: best-effort вызов не должен блокировать поток
-     * погашения, если core-api недоступен или отвечает медленно.
+     * погашения, если core-api недоступен или отвечает медленно. Таймауты настраиваются
+     * через {@code core-api.connect-timeout}/{@code core-api.read-timeout} (env-переменные).
      */
-    private static SimpleClientHttpRequestFactory requestFactory() {
+    private static SimpleClientHttpRequestFactory requestFactory(Duration connectTimeout, Duration readTimeout) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(Duration.ofSeconds(2));
-        factory.setReadTimeout(Duration.ofSeconds(3));
+        factory.setConnectTimeout(connectTimeout);
+        factory.setReadTimeout(readTimeout);
 
         return factory;
     }
