@@ -1,0 +1,7 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-create-subscriber-schema
+      author: claude
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS subscriber;
