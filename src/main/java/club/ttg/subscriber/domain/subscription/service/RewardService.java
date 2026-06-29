@@ -2,7 +2,6 @@ package club.ttg.subscriber.domain.subscription.service;
 
 import club.ttg.subscriber.domain.subscription.model.RewardPerk;
 import club.ttg.subscriber.domain.subscription.model.RewardResource;
-import club.ttg.subscriber.domain.subscription.model.RewardTier;
 import club.ttg.subscriber.domain.subscription.model.UserReward;
 import club.ttg.subscriber.domain.subscription.repository.RewardResourceRepository;
 import club.ttg.subscriber.domain.subscription.repository.UserRewardRepository;
@@ -27,21 +26,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Выдача и резолв косметических наград (перков). Перки выдаются навсегда и идемпотентно
+ * (повторная выдача не дублирует), а их контент — заголовок/ссылка/статус готовности —
+ * хранится отдельно в {@link RewardResource} и подставляется при отдаче пользователю.
+ */
 @Service
 @RequiredArgsConstructor
 public class RewardService {
     private final UserRewardRepository rewardRepository;
     private final RewardResourceRepository resourceRepository;
-
-    /**
-     * Выдаёт пользователю все перки тира. Уже имеющиеся перки пропускаются.
-     *
-     * @return фактически выданные перки
-     */
-    @Transactional
-    public List<RewardPerk> grantTier(String username, RewardTier tier, UUID sourceCode) {
-        return grantPerks(username, tier.perks(), sourceCode);
-    }
 
     /**
      * Выдаёт пользователю произвольный набор перков. Уже имеющиеся перки пропускаются.
@@ -73,17 +67,13 @@ public class RewardService {
         return granted;
     }
 
+    /** Награды текущего пользователя (новые сверху) с подставленным контентом. */
     @Transactional(readOnly = true)
     public List<UserRewardResponse> currentUserRewards() {
         Map<RewardPerk, RewardResource> resources = resourceMap();
         return rewardRepository.findByUsernameOrderByGrantedAtDesc(currentUsername()).stream()
                 .map(reward -> toResponse(reward, resources.get(reward.getPerk())))
                 .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public boolean hasPerk(String username, RewardPerk perk) {
-        return StringUtils.hasText(username) && rewardRepository.existsByUsernameAndPerk(username, perk);
     }
 
     /**
@@ -116,6 +106,7 @@ public class RewardService {
                 resource == null ? null : resource.getNote());
     }
 
+    /** Весь конфиг контента наград (perk → ссылка/статус готовности) для админки. */
     @Transactional(readOnly = true)
     public List<RewardResourceResponse> resources() {
         return resourceRepository.findAll().stream()
@@ -123,6 +114,7 @@ public class RewardService {
                 .toList();
     }
 
+    /** Создаёт или обновляет контент награды (ссылку/статус готовности) для перка. */
     @Transactional
     public RewardResourceResponse updateResource(RewardPerk perk, UpdateRewardResourceRequest request) {
         RewardResource resource = resourceRepository.findById(perk).orElseGet(() -> {

@@ -24,20 +24,30 @@ public class JwtUtils {
     @Value("${auth-service.jwt-secret}")
     private String secretKey;
 
+    /**
+     * Логин из токена. Берётся из claim {@code username}, а при его отсутствии — из
+     * subject (совместимость со старыми токенами, где subject содержал логин).
+     */
     public String extractUsername(String token) {
         String username = extractClaim(token, claims -> claims.get("username", String.class));
 
         return username != null ? username : extractClaim(token, Claims::getSubject);
     }
 
+    /**
+     * Идентификатор пользователя (subject токена). В старых токенах core-api здесь мог
+     * быть логин, а не UUID — это учитывает {@link JwtAuthFilter}.
+     */
     public String extractUserId(String token) {
         return extractClaim(token, Claims::getSubject);
     }
 
+    /** Email из claim {@code email}; {@code null}, если его нет в токене. */
     public String extractEmail(String token) {
         return extractClaim(token, claims -> claims.get("email", String.class));
     }
 
+    /** Роли из claim {@code roles}; пустой список, если claim отсутствует или не является списком строк. */
     public List<String> extractRoles(String token) {
         Object roles = extractAllClaims(token).get("roles");
 
@@ -51,15 +61,25 @@ public class JwtUtils {
         return Collections.emptyList();
     }
 
+    /** Дата истечения токена (claim {@code exp}); {@code null}, если claim не задан. */
     public Date extractExpiration(String token) {
         return extractClaim(token, Claims::getExpiration);
     }
 
+    /**
+     * Извлекает произвольный claim через resolver, разобрав и проверив подпись токена.
+     *
+     * @param claimsResolver функция, вытаскивающая нужное значение из {@link Claims}
+     */
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
     }
 
+    /**
+     * Проверяет токен: корректная подпись и срок действия. Любая ошибка разбора
+     * трактуется как невалидность (возвращает {@code false}, не пробрасывает).
+     */
     public Boolean isTokenValid(String token) {
         try {
             extractAllClaims(token);

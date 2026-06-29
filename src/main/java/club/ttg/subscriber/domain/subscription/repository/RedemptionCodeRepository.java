@@ -12,6 +12,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Доступ к промо-кодам погашения.
+ */
 public interface RedemptionCodeRepository extends JpaRepository<RedemptionCode, UUID> {
     Optional<RedemptionCode> findByCode(String code);
 

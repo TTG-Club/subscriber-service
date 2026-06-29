@@ -26,6 +26,12 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Подписки и коды погашения. Покрывает весь жизненный цикл: выпуск/деактивацию кодов
+ * админом, погашение кода и активацию подписки пользователем, а также его личные
+ * списки подписок и погашенных кодов. Идентификатор пользователя — его username
+ * из auth-service; для текущего пользователя берётся из контекста безопасности.
+ */
 @Tag(name = "Подписки")
 @RestController
 @RequiredArgsConstructor

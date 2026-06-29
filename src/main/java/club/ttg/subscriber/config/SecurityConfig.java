@@ -27,6 +27,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 
+/**
+ * Конфигурация безопасности: stateless-цепочка фильтров без сессий и CSRF, авторизация
+ * по ролям через {@code @Secured} ({@code securedEnabled = true}). Аутентификация
+ * пользователей идёт {@link JwtAuthFilter}, а service-to-service маршруты
+ * {@code /api/internal/**} закрыты {@link InternalServiceTokenFilter}; публично открыты
+ * только actuator-health и swagger.
+ */
 @Configuration
 @RequiredArgsConstructor
 @EnableMethodSecurity(securedEnabled = true)
@@ -34,6 +41,11 @@ public class SecurityConfig {
     private final JwtAuthFilter jwtAuthFilter;
     private final InternalServiceTokenFilter internalServiceTokenFilter;
 
+    /**
+     * CORS для фронта: разрешённые origin собираются из {@code app.frontend-base-url} и
+     * {@code app.allowed-frontend-origins}. Дополнительно same-origin запрос (с учётом
+     * X-Forwarded-Proto/Host за прокси) разрешается всегда, даже если его origin не в списке.
+     */
     @Bean
     public CorsConfigurationSource corsConfigurationSource(
             @Value("${app.frontend-base-url:http://localhost:3000}") String frontendBaseUrl,
@@ -140,6 +152,11 @@ public class SecurityConfig {
         };
     }
 
+    /**
+     * Главная цепочка фильтров: stateless, без CSRF, с CORS; неаутентифицированный
+     * запрос получает 401. Оба кастомных фильтра ставятся перед
+     * {@link UsernamePasswordAuthenticationFilter}.
+     */
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http

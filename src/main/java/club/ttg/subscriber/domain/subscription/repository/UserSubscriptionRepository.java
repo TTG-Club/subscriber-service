@@ -8,14 +8,18 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+/**
+ * Доступ к подпискам пользователей.
+ */
 public interface UserSubscriptionRepository extends JpaRepository<UserSubscription, UUID> {
+    /** Все подписки, новые сверху (для админского списка). */
     List<UserSubscription> findAllByOrderByCreatedAtDesc();
 
+    /** Подписки пользователя, новые сверху (для личного кабинета). */
     List<UserSubscription> findByOwnerUsernameOrderByCreatedAtDesc(String ownerUsername);
 
+    /** Заводил ли пользователь хотя бы одну подписку (без учёта активности). */
     boolean existsByOwnerUsername(String ownerUsername);
-
-    boolean existsByOwnerUsernameAndStartsAtIsNotNullAndExpiresAtAfter(String ownerUsername, Instant now);
 
     /**
      * Активная подписка пользователя с наибольшей датой окончания.

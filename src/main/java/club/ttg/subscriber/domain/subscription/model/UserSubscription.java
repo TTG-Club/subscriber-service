@@ -18,6 +18,11 @@ import org.hibernate.annotations.UuidGenerator;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * Временная подписка пользователя. Активна, пока проставлен {@code startsAt} и
+ * {@code expiresAt} в будущем; у пользователя может накапливаться несколько записей
+ * (например, продление поверх действующей).
+ */
 @Getter
 @Setter
 @Entity

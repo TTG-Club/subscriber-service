@@ -39,6 +39,12 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+/**
+ * Подписки и одноразовые коды погашения: выпуск/деактивация кодов, погашение и
+ * активация подписки пользователем, админская выдача/отзыв и вычисление статуса.
+ * Ролей сервис не выдаёт — доступ считается в реальном времени по `startsAt`/`expiresAt`
+ * (см. {@link #statusFor}). Погашение кода атомарно защищено от гонок на уровне БД.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -182,6 +188,7 @@ public class SubscriptionService {
         return toResponse(subscription, now);
     }
 
+    /** Все подписки для админского списка (новые сверху) с актуальным статусом. */
     @Transactional(readOnly = true)
     public List<SubscriptionResponse> allSubscriptions() {
         Instant now = Instant.now();
@@ -223,6 +230,7 @@ public class SubscriptionService {
         return toResponse(codeRepository.save(code));
     }
 
+    /** Подписки текущего пользователя (новые сверху) с актуальным статусом. */
     @Transactional(readOnly = true)
     public List<SubscriptionResponse> currentUserSubscriptions() {
         Instant now = Instant.now();
@@ -404,17 +412,6 @@ public class SubscriptionService {
                             subscription == null ? null : toResponse(subscription, now));
                 })
                 .toList();
-    }
-
-    @Transactional(readOnly = true)
-    public boolean hasRegisteredSubscription(String username) {
-        return StringUtils.hasText(username) && subscriptionRepository.existsByOwnerUsername(username);
-    }
-
-    @Transactional(readOnly = true)
-    public boolean hasActiveSubscription(String username, Instant now) {
-        return StringUtils.hasText(username)
-                && subscriptionRepository.existsByOwnerUsernameAndStartsAtIsNotNullAndExpiresAtAfter(username, now);
     }
 
     private Instant plusMonths(Instant base, int months) {

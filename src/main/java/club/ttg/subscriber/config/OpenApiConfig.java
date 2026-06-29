@@ -9,6 +9,10 @@ import io.swagger.v3.oas.annotations.security.SecurityScheme;
 import io.swagger.v3.oas.annotations.servers.Server;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * Описание OpenAPI/Swagger сервиса: метаданные API и схема авторизации
+ * {@code bearerAuth} (JWT в заголовке Authorization).
+ */
 @Configuration
 @OpenAPIDefinition(
         info = @Info(

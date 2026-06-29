@@ -12,13 +12,19 @@ import org.springframework.web.server.ResponseStatusException;
 
 import java.time.Instant;
 
+/**
+ * Глобальный обработчик исключений: приводит ошибки всех ручек к единому
+ * {@link ApiErrorResponse} с корректным HTTP-статусом.
+ */
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+    /** Прикладные исключения: отдаёт заложенные в них статус и сообщение. */
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiErrorResponse> handleApiException(ApiException exception) {
         return buildResponse(exception.getStatus(), exception.getMessage());
     }
 
+    /** Исключения Spring с HTTP-статусом; пустая причина заменяется дефолтным текстом. */
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiErrorResponse> handleResponseStatus(ResponseStatusException exception) {
         String message = exception.getReason() == null || exception.getReason().isBlank()
@@ -28,6 +34,7 @@ public class GlobalExceptionHandler {
         return buildResponse(exception.getStatusCode(), message);
     }
 
+    /** Ошибки bean-валидации: возвращает 400 с сообщением первого нарушенного поля. */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorResponse> handleMethodArgumentNotValid(MethodArgumentNotValidException exception) {
         String message = exception.getBindingResult().getFieldErrors().stream()
@@ -38,6 +45,7 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, message);
     }
 
+    /** Нарушения целостности данных (например, уникальных ограничений): возвращает 409. */
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiErrorResponse> handleDataIntegrityViolation(DataIntegrityViolationException exception) {
         return buildResponse(HttpStatus.CONFLICT, "Нарушение целостности данных");

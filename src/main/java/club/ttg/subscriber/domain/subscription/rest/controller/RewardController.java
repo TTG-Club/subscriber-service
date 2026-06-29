@@ -21,6 +21,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * Косметические награды (перки) пользователей: их выдача, контент-конфиг и список
+ * увековеченных в приложении. Награды живут отдельно от подписок — выдаются навсегда
+ * при погашении кода либо напрямую админом. Идентификатор пользователя — его username
+ * из auth-service.
+ */
 @Tag(name = "Награды")
 @RestController
 @RequiredArgsConstructor
