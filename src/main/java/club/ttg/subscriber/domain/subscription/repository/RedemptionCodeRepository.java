@@ -21,6 +21,7 @@ public interface RedemptionCodeRepository extends JpaRepository<RedemptionCode, 
     boolean existsByCode(String code);
 
     /** Все выпущенные коды, новые сверху (для админского списка). */
+    @EntityGraph(attributePaths = {"perks", "achievements"})
     List<RedemptionCode> findAllByOrderByCreatedAtDesc();
 
     /** Коды, погашенные пользователем, новые сверху (для личного кабинета). */
