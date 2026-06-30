@@ -6,29 +6,41 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Краудфандинговый тир. Тиры кумулятивны: каждый следующий включает все награды
- * нижестоящих. Порядок объявления значений = возрастание тира.
+ * Краудфандинговый тир. Перки кумулятивны: каждый следующий тир включает все награды
+ * нижестоящих. Срок подписки, наоборот, задаётся для каждого тира отдельно (не
+ * накапливается). Порядок объявления значений = возрастание тира.
  */
 public enum RewardTier {
-    /** Ранний доступ к скачиванию. */
-    TIER_1(RewardPerk.EARLY_ACCESS_DOWNLOAD),
-    /** Добавляет скачивание карты и токенов. */
-    TIER_2(RewardPerk.MAP_TOKENS_DOWNLOAD),
-    /** Добавляет скачивание приключения. */
-    TIER_3(RewardPerk.ADVENTURE_DOWNLOAD),
-    /** Добавляет доступ в приватный чат разработки. */
-    TIER_4(RewardPerk.DEV_CHAT_ACCESS),
-    /** Добавляет значок профиля и рамку аватарки. */
-    TIER_5(RewardPerk.PROFILE_BADGE, RewardPerk.AVATAR_FRAME),
-    /** Добавляет увековечивание в титрах приложения. */
-    TIER_6(RewardPerk.APP_CREDITS);
+    /** Ранний доступ к скачиванию и 3 месяца подписки. */
+    TIER_1(3, RewardPerk.EARLY_ACCESS_DOWNLOAD),
+    /** Добавляет скачивание карты и токенов; 3 месяца подписки. */
+    TIER_2(3, RewardPerk.MAP_TOKENS_DOWNLOAD),
+    /** Добавляет скачивание приключения; 3 месяца подписки. */
+    TIER_3(3, RewardPerk.ADVENTURE_DOWNLOAD),
+    /** Добавляет доступ в приватный чат разработки; 3 месяца подписки. */
+    TIER_4(3, RewardPerk.DEV_CHAT_ACCESS),
+    /** Добавляет значок профиля и рамку аватарки; 6 месяцев подписки. */
+    TIER_5(6, RewardPerk.PROFILE_BADGE, RewardPerk.AVATAR_FRAME),
+    /** Добавляет увековечивание в титрах приложения; 12 месяцев подписки. */
+    TIER_6(12, RewardPerk.APP_CREDITS);
 
+    /** Срок подписки-пресета в месяцах; 0 — тир без подписки. Не кумулятивен. */
+    private final int subscriptionMonths;
     private final Set<RewardPerk> ownPerks;
 
-    RewardTier(RewardPerk... perks) {
+    RewardTier(int subscriptionMonths, RewardPerk... perks) {
+        this.subscriptionMonths = subscriptionMonths;
         this.ownPerks = perks.length == 0
                 ? EnumSet.noneOf(RewardPerk.class)
                 : EnumSet.copyOf(List.of(perks));
+    }
+
+    /**
+     * Срок подписки, заложенный в тир (в месяцах). 0 — тир не несёт подписки.
+     * В отличие от {@link #perks()} не накапливается между тирами.
+     */
+    public int subscriptionMonths() {
+        return subscriptionMonths;
     }
 
     /**
