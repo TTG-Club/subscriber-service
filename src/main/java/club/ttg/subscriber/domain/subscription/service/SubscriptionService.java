@@ -76,11 +76,23 @@ public class SubscriptionService {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "Код должен нести подписку, тир, перки или достижения");
         }
-        if (request.subscriptionMonths() != null) {
-            if (request.subscriptionMonths() < 1) {
+
+        // Подписка: явно заданный в запросе срок важнее; иначе берём пресет тира (тип — GIFT).
+        // Срок «зашивается» в код при выпуске, поэтому погашение/статус дальше работают как обычно.
+        Integer subscriptionMonths = request.subscriptionMonths();
+        SubscriptionType subscriptionType = request.subscriptionType();
+        if (subscriptionMonths == null && request.rewardTier() != null
+                && request.rewardTier().subscriptionMonths() > 0) {
+            subscriptionMonths = request.rewardTier().subscriptionMonths();
+            if (subscriptionType == null) {
+                subscriptionType = SubscriptionType.GIFT;
+            }
+        }
+        if (subscriptionMonths != null) {
+            if (subscriptionMonths < 1) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Срок подписки должен быть не меньше 1 месяца");
             }
-            if (request.subscriptionType() == null) {
+            if (subscriptionType == null) {
                 throw new ApiException(HttpStatus.BAD_REQUEST, "Не указан тип подписки");
             }
         }
@@ -90,8 +102,8 @@ public class SubscriptionService {
         for (int i = 0; i < count; i++) {
             RedemptionCode code = new RedemptionCode();
             code.setCode(generateUniqueCode(batch));
-            code.setSubscriptionType(request.subscriptionMonths() == null ? null : request.subscriptionType());
-            code.setSubscriptionMonths(request.subscriptionMonths());
+            code.setSubscriptionType(subscriptionMonths == null ? null : subscriptionType);
+            code.setSubscriptionMonths(subscriptionMonths);
             code.setRewardTier(request.rewardTier());
             code.setPerks(hasPerks ? EnumSet.copyOf(request.perks()) : new HashSet<>());
             code.setAchievements(hasAchievements ? new HashSet<>(request.achievements()) : new HashSet<>());
