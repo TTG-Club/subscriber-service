@@ -456,14 +456,16 @@ public class SubscriptionService {
     }
 
     private RedemptionCodeResponse toResponse(RedemptionCode code) {
+        // Копируем ленивые коллекции в обычные Set внутри транзакции: иначе при сериализации
+        // ответа (вне транзакции, open-in-view=false) они бросят LazyInitializationException.
         return new RedemptionCodeResponse(
                 code.getUuid(),
                 code.getCode(),
                 code.getSubscriptionType(),
                 code.getSubscriptionMonths(),
                 code.getRewardTier(),
-                code.getPerks(),
-                code.getAchievements(),
+                code.getPerks() == null ? Set.of() : new HashSet<>(code.getPerks()),
+                code.getAchievements() == null ? Set.of() : new HashSet<>(code.getAchievements()),
                 code.getLabel(),
                 code.getRedeemedBy(),
                 code.getRedeemedAt(),
