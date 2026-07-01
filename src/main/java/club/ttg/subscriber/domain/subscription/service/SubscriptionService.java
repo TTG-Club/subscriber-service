@@ -1,5 +1,6 @@
 package club.ttg.subscriber.domain.subscription.service;
 
+import club.ttg.subscriber.client.AuthServiceRoleClient;
 import club.ttg.subscriber.client.CoreApiAchievementClient;
 import club.ttg.subscriber.domain.subscription.model.RedemptionCode;
 import club.ttg.subscriber.domain.subscription.model.RewardPerk;
@@ -23,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.security.SecureRandom;
 import java.time.Instant;
@@ -42,7 +44,9 @@ import java.util.UUID;
 /**
  * Подписки и одноразовые коды погашения: выпуск/деактивация кодов, погашение и
  * активация подписки пользователем, админская выдача/отзыв и вычисление статуса.
- * Ролей сервис не выдаёт — доступ считается в реальном времени по `startsAt`/`expiresAt`
+ * При погашении кода с ранним доступом ({@link RewardPerk#EARLY_ACCESS_DOWNLOAD}) сервис
+ * просит auth-service выдать роль VTTG (см. {@link AuthServiceRoleClient}); подписочный
+ * доступ по-прежнему считается в реальном времени по `startsAt`/`expiresAt`
  * (см. {@link #statusFor}). Погашение кода атомарно защищено от гонок на уровне БД.
  */
 @Slf4j
@@ -53,11 +57,14 @@ public class SubscriptionService {
     private static final int CODE_LENGTH = 16;
     private static final int MAX_CODE_ATTEMPTS = 20;
     private static final int MAX_BATCH_SIZE = 1000;
+    /** Роль раннего доступа, выдаётся auth-service при погашении кода с EARLY_ACCESS_DOWNLOAD. */
+    private static final String EARLY_ACCESS_ROLE = "VTTG";
 
     private final RedemptionCodeRepository codeRepository;
     private final UserSubscriptionRepository subscriptionRepository;
     private final RewardService rewardService;
     private final CoreApiAchievementClient achievementClient;
+    private final AuthServiceRoleClient authRoleClient;
     private final SecureRandom random = new SecureRandom();
 
     /**
@@ -158,6 +165,33 @@ public class SubscriptionService {
         }
         perks.addAll(code.getPerks());
         List<RewardPerk> grantedPerks = rewardService.grantPerks(username, perks, code.getUuid());
+
+        // Ранний доступ → роль VTTG в auth-service. НЕ best-effort: любая ошибка откатывает
+        // всю транзакцию погашения (код останется непогашенным), чтобы не выдать перки/
+        // подписку без роли. Грант в auth идемпотентен, поэтому редкий случай «auth выдал,
+        // но локальный commit упал» самолечится при повторном погашении.
+        if (perks.contains(RewardPerk.EARLY_ACCESS_DOWNLOAD)) {
+            try {
+                authRoleClient.grantRole(username, EARLY_ACCESS_ROLE);
+            } catch (RestClientResponseException httpError) {
+                // auth ответил статусом-ошибкой. 4xx (роль/пользователь не найдены, неверный
+                // service-token) детерминированны — повтор не поможет; 5xx можно повторить.
+                log.error("auth-service отклонил выдачу роли {} пользователю {} по коду {}: {}",
+                        EARLY_ACCESS_ROLE, username, code.getUuid(), httpError.getStatusCode());
+                if (httpError.getStatusCode().is4xxClientError()) {
+                    throw new ApiException(HttpStatus.BAD_GATEWAY,
+                            "Не удалось активировать код: ошибка выдачи доступа, обратитесь в поддержку");
+                }
+                throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "Сервис временно недоступен, попробуйте позже");
+            } catch (Exception exception) {
+                // сеть/таймаут/прочее — транзиентно, повтор может помочь
+                log.error("auth-service недоступен при выдаче роли {} пользователю {} по коду {}: {}",
+                        EARLY_ACCESS_ROLE, username, code.getUuid(), exception.getMessage());
+                throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "Сервис временно недоступен, попробуйте позже");
+            }
+        }
 
         // достижения живут в core-api: начисляем best-effort, ошибка не валит погашение
         Set<String> achievements = code.getAchievements();

@@ -41,6 +41,9 @@ server:
 
 auth-service:
   jwt-secret: ${AUTH_SERVICE_JWT_SECRET}
+  base-url: ${AUTH_SERVICE_URL:http://auth-service:8080}
+  connect-timeout: ${AUTH_SERVICE_CONNECT_TIMEOUT:2s}
+  read-timeout: ${AUTH_SERVICE_READ_TIMEOUT:3s}
 
 internal:
   service-secret: ${INTERNAL_SERVICE_SECRET}
