@@ -2,6 +2,7 @@ package club.ttg.subscriber.domain.subscription.rest.controller;
 
 import club.ttg.subscriber.domain.subscription.rest.dto.AdminSubscriptionStatusResponse;
 import club.ttg.subscriber.domain.subscription.rest.dto.GrantSubscriptionRequest;
+import club.ttg.subscriber.domain.subscription.rest.dto.RedemptionCodeResponse;
 import club.ttg.subscriber.domain.subscription.service.SubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -15,6 +16,8 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 /**
  * Админское управление подписками пользователей. Идентификатор пользователя `{userId}`
@@ -52,5 +55,12 @@ public class AdminSubscriptionController {
         subscriptionService.revoke(userId);
 
         return subscriptionService.adminStatusFor(userId);
+    }
+
+    @Secured("ADMIN")
+    @Operation(summary = "Коды, погашённые пользователем (новые сверху)")
+    @GetMapping("/{userId}/codes")
+    public List<RedemptionCodeResponse> redeemedCodes(@PathVariable String userId) {
+        return subscriptionService.redeemedCodesFor(userId);
     }
 }
