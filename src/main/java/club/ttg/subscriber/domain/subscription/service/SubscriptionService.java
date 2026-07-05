@@ -252,6 +252,20 @@ public class SubscriptionService {
     }
 
     /**
+     * Коды, погашённые указанным пользователем (новые сверху) — для админ-карточки пользователя.
+     * Пустой/неизвестный username даёт пустой список (без 404), как и {@link #adminStatusFor}.
+     */
+    @Transactional(readOnly = true)
+    public List<RedemptionCodeResponse> redeemedCodesFor(String username) {
+        if (!StringUtils.hasText(username)) {
+            return List.of();
+        }
+        return codeRepository.findByRedeemedByOrderByRedeemedAtDesc(username).stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    /**
      * Мягко деактивирует или возвращает в строй выпущенный код. Деактивированный код
      * нельзя погасить, но запись сохраняется. Менять статус уже использованного кода
      * нельзя. Деактивацию пишем в аудит (кем/когда), при возврате — очищаем.
