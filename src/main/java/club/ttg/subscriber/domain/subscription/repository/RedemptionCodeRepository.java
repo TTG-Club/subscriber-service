@@ -38,4 +38,14 @@ public interface RedemptionCodeRepository extends JpaRepository<RedemptionCode, 
     @Query("update RedemptionCode c set c.redeemedBy = :username, c.redeemedAt = :now "
             + "where c.code = :code and c.redeemedBy is null")
     int claim(@Param("code") String code, @Param("username") String username, @Param("now") Instant now);
+
+    /**
+     * Дописывает коду ссылку-приглашение в чат разработки (фолбэк при погашении для
+     * кодов, выпущенных до фичи). Отдельный bulk-update, а не save сущности: после
+     * {@link #claim} загруженная сущность устарела, и её сохранение затёрло бы
+     * {@code redeemed_by}/{@code redeemed_at}.
+     */
+    @Modifying
+    @Query("update RedemptionCode c set c.telegramInviteLink = :link where c.uuid = :uuid")
+    int updateTelegramInviteLink(@Param("uuid") UUID uuid, @Param("link") String link);
 }

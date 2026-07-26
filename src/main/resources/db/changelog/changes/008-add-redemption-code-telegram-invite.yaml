@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 008-add-redemption-code-telegram-invite
+      author: claude
+      changes:
+        - addColumn:
+            schemaName: subscriber
+            tableName: redemption_code
+            columns:
+              - column:
+                  name: telegram_invite_link
+                  type: VARCHAR(512)

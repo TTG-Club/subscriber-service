@@ -21,6 +21,7 @@ import java.util.UUID;
  * @param perks              косметические перки кода помимо тира
  * @param achievements       коды достижений кода
  * @param label              пометка админа, заданная при выпуске
+ * @param telegramInviteLink одноразовая ссылка-приглашение в чат разработки (null — код её не несёт)
  * @param redeemedBy         username пользователя, погасившего код (null — не погашен)
  * @param redeemedAt         момент погашения (null — не погашен)
  * @param disabled           деактивирован ли код (нельзя погасить)
@@ -37,6 +38,7 @@ public record RedemptionCodeResponse(
         Set<RewardPerk> perks,
         Set<String> achievements,
         String label,
+        String telegramInviteLink,
         String redeemedBy,
         Instant redeemedAt,
         boolean disabled,
