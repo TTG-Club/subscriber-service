@@ -1,6 +1,6 @@
 package club.ttg.subscriber.client;
 
-import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
@@ -77,21 +77,44 @@ public class TelegramInviteClient {
         payload.put("name", truncateName(name));
         payload.put("member_limit", 1);
 
-        JsonNode response = restClient.post()
+        CreateInviteLinkResponse response = restClient.post()
                 // Токен — часть пути (…/bot<token>/method). В шаблон не оборачиваем,
                 // чтобы ':' в токене не был percent-энкоднут.
                 .uri("/bot" + botToken + "/createChatInviteLink")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(payload)
                 .retrieve()
-                .body(JsonNode.class);
+                .body(CreateInviteLinkResponse.class);
 
-        String inviteLink = response == null ? "" : response.path("result").path("invite_link").asText("");
+        String inviteLink = response == null || response.result() == null
+                ? null
+                : response.result().inviteLink();
         if (!StringUtils.hasText(inviteLink)) {
             throw new IllegalStateException("Telegram вернул ответ без invite_link");
         }
 
         return inviteLink;
+    }
+
+    /**
+     * Ответ Bot API {@code {"ok":true,"result":{"invite_link":"..."}}}. Достаём только
+     * ссылку, остальные поля игнорируются. Осознанно record, а не JsonNode: приложение
+     * живёт на Jackson 3 (Spring Boot 4), и его конвертер не поддерживает типы Jackson 2.
+     *
+     * @param ok     флаг успеха от Telegram
+     * @param result объект созданной ссылки
+     */
+    public record CreateInviteLinkResponse(
+            @JsonProperty("ok") Boolean ok,
+            @JsonProperty("result") Result result
+    ) {
+        /**
+         * Созданная ссылка-приглашение.
+         *
+         * @param inviteLink ссылка вида {@code https://t.me/+...}
+         */
+        public record Result(@JsonProperty("invite_link") String inviteLink) {
+        }
     }
 
     private static String truncateName(String name) {
