@@ -2,7 +2,7 @@ package club.ttg.subscriber.domain.subscription.service;
 
 import club.ttg.subscriber.client.AuthServiceRoleClient;
 import club.ttg.subscriber.client.CoreApiAchievementClient;
-import club.ttg.subscriber.client.CoreApiTelegramInviteClient;
+import club.ttg.subscriber.client.TelegramInviteClient;
 import club.ttg.subscriber.domain.subscription.model.RedemptionCode;
 import club.ttg.subscriber.domain.subscription.model.RewardPerk;
 import club.ttg.subscriber.domain.subscription.model.RewardResource;
@@ -25,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
 import java.security.SecureRandom;
@@ -72,7 +73,7 @@ public class SubscriptionService {
     private final RewardService rewardService;
     private final CoreApiAchievementClient achievementClient;
     private final AuthServiceRoleClient authRoleClient;
-    private final CoreApiTelegramInviteClient telegramInviteClient;
+    private final TelegramInviteClient telegramInviteClient;
     private final SecureRandom random = new SecureRandom();
 
     /**
@@ -147,8 +148,8 @@ public class SubscriptionService {
     }
 
     /**
-     * Выпускает через core-api одноразовую ссылку-приглашение в чат разработки
-     * (Telegram, {@code member_limit=1}); подписью ссылки служит сам код — так в списке
+     * Выпускает через Telegram Bot API одноразовую ссылку-приглашение в чат разработки
+     * ({@code member_limit=1}); подписью ссылки служит сам код — так в списке
      * приглашений чата видно, чей это инвайт. Вызов обязателен: любая ошибка откатывает
      * всю транзакцию выпуска, чтобы не появились коды с перком чата, но без ссылки.
      * Уже выпущенные в Telegram ссылки отменённой партии безвредны — их никто не увидит.
@@ -157,23 +158,40 @@ public class SubscriptionService {
         try {
             return telegramInviteClient.createDevChatInvite(codeString);
         } catch (RestClientResponseException httpError) {
-            // core-api ответил статусом-ошибкой: 4xx детерминированны (не настроена интеграция,
-            // неверный service-token и т.п.) — повтор не поможет; 5xx/503 можно повторить.
-            log.error("core-api отклонил выпуск приглашения в чат для кода {}: {}",
-                    codeString, httpError.getStatusCode());
-            if (httpError.getStatusCode().is4xxClientError()) {
-                throw new ApiException(HttpStatus.BAD_GATEWAY,
-                        "Не удалось выпустить приглашение в чат разработки, обратитесь в поддержку");
+            // Telegram ответил статусом-ошибкой: 4xx (кроме 429) детерминированны — чат не
+            // найден, бот не админ и т.п., повтор не поможет; 429/5xx можно повторить.
+            // Тело ответа Telegram содержит человекочитаемую причину (description) и безопасно
+            // для лога; message самого исключения НЕ логируем — в нём URL с токеном бота.
+            log.error("Telegram отклонил создание приглашения для кода {}: {} {}",
+                    codeString, httpError.getStatusCode(), httpError.getResponseBodyAsString());
+            boolean retriable = httpError.getStatusCode().value() == 429
+                    || httpError.getStatusCode().is5xxServerError();
+            if (retriable) {
+                throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                        "Сервис временно недоступен, попробуйте позже");
             }
-            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
-                    "Сервис временно недоступен, попробуйте позже");
+            throw new ApiException(HttpStatus.BAD_GATEWAY,
+                    "Не удалось выпустить приглашение в чат разработки, обратитесь в поддержку");
         } catch (Exception exception) {
-            // сеть/таймаут/прочее — транзиентно, повтор может помочь
-            log.error("core-api недоступен при выпуске приглашения в чат для кода {}: {}",
-                    codeString, exception.getMessage());
+            // Сеть/таймаут/интеграция не настроена — транзиентно, повтор может помочь.
+            log.error("Не удалось создать приглашение в чат для кода {}: {}",
+                    codeString, safeInviteErrorMessage(exception));
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Сервис временно недоступен, попробуйте позже");
         }
+    }
+
+    /**
+     * Сообщение об ошибке выпуска приглашения, безопасное для лога: у
+     * {@link RestClientException} в message вшит полный URL запроса, а в пути —
+     * токен бота, поэтому берём причину (IOException) вместо самого message.
+     */
+    private static String safeInviteErrorMessage(Exception exception) {
+        if (exception instanceof RestClientException) {
+            Throwable cause = exception.getCause();
+            return cause != null ? cause.getMessage() : exception.getClass().getSimpleName();
+        }
+        return exception.getMessage();
     }
 
     /**
@@ -232,7 +250,7 @@ public class SubscriptionService {
                         telegramInviteClient.createDevChatInvite(code.getCode()));
             } catch (Exception exception) {
                 log.warn("Не удалось выпустить приглашение в чат при погашении кода {}: {}",
-                        code.getUuid(), exception.getMessage());
+                        code.getUuid(), safeInviteErrorMessage(exception));
             }
         }
 

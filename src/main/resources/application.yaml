@@ -53,6 +53,13 @@ core-api:
   connect-timeout: ${CORE_API_CONNECT_TIMEOUT:2s}
   read-timeout: ${CORE_API_READ_TIMEOUT:3s}
 
+telegram:
+  bot-token: ${TELEGRAM_BOT_TOKEN:}
+  dev-chat-id: ${TELEGRAM_DEV_CHAT_ID:}
+  api-url: ${TELEGRAM_API_URL:https://api.telegram.org}
+  connect-timeout: ${TELEGRAM_CONNECT_TIMEOUT:3s}
+  read-timeout: ${TELEGRAM_READ_TIMEOUT:10s}
+
 springdoc:
   api-docs:
     enabled: ${SPRINGDOC_ENABLED:false}

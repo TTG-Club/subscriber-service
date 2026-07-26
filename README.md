@@ -55,6 +55,8 @@ Service-to-service (заголовок `X-Service-Token`, **без** JWT):
 | `AUTH_SERVICE_JWT_SECRET`      | общий HMAC-секрет для валидации JWT (`auth-service.jwt-secret`)            |
 | `INTERNAL_SERVICE_SECRET`      | секрет заголовка `X-Service-Token` для `/api/internal/**` и вызовов core-api |
 | `CORE_API_URL`                 | базовый URL core-api для начисления достижений (`core-api.base-url`)       |
+| `TELEGRAM_BOT_TOKEN`           | токен Telegram-бота для выпуска приглашений в чат разработки (пусто — выключено) |
+| `TELEGRAM_DEV_CHAT_ID`         | id секретного чата разработки (для супергруппы — вида `-100...`)           |
 | `SERVER_PORT`                  | порт приложения (по умолчанию 8083)                                        |
 | `APP_ALLOWED_FRONTEND_ORIGINS` | список разрешённых CORS-origin фронтенда (через запятую)                   |
 | `SPRINGDOC_ENABLED`            | включить Swagger UI / OpenAPI (по умолчанию false)                         |
@@ -70,12 +72,15 @@ core-api появится позже.
 
 ## Приглашения в Telegram-чат разработки
 
-Токен бота живёт в core-api. Для кодов с перком `DEV_CHAT_ACCESS` (в т.ч. любых тиров 4+)
-сервис при **выпуске** просит core-api создать одноразовую ссылку-приглашение
-(`POST {CORE_API_URL}/api/internal/telegram/dev-chat-invite`, `CoreApiTelegramInviteClient`,
-заголовок `X-Service-Token`) и хранит её в `redemption_code.telegram_invite_link`. Вызов
-**обязательный**: ошибка откатывает выпуск всей партии; партия таких кодов ограничена 50 шт.
-При **погашении** кода без ссылки (выпущен до фичи) работает best-effort фолбэк — ошибка
-только логируется. Пользователь видит ссылку в наградах кода (`/api/subscriptions/my-codes`,
-`/api/rewards/me`): персональная ссылка кода приоритетнее общей из `reward_resource`.
-Новых env-переменных у сервиса нет; id чата (`TELEGRAM_DEV_CHAT_ID`) настраивается в core-api.
+Для кодов с перком `DEV_CHAT_ACCESS` (в т.ч. любых тиров 4+) сервис при **выпуске** сам
+создаёт одноразовую ссылку-приглашение через Telegram Bot API (`TelegramInviteClient`,
+`createChatInviteLink` с `member_limit=1` — после первого входа Telegram гасит ссылку)
+и хранит её в `redemption_code.telegram_invite_link`. Вызов **обязательный**: ошибка
+откатывает выпуск всей партии; партия таких кодов ограничена 50 шт. При **погашении**
+кода без ссылки (выпущен до фичи) работает best-effort фолбэк — ошибка только логируется.
+Пользователь видит ссылку в наградах кода (`/api/subscriptions/my-codes`, `/api/rewards/me`):
+персональная ссылка кода приоритетнее общей из `reward_resource`.
+
+Настройка: `TELEGRAM_BOT_TOKEN` (можно тот же бот, что постит новости в core-api) и
+`TELEGRAM_DEV_CHAT_ID`. Бот должен быть **администратором** чата с правом «Приглашать
+пользователей». Пока переменные не заданы, выпуск кодов с этим перком отвечает 503.
