@@ -1,8 +1,11 @@
 package club.ttg.subscriber.domain.subscription.service;
 
+import club.ttg.subscriber.domain.subscription.model.RedemptionCode;
 import club.ttg.subscriber.domain.subscription.model.RewardPerk;
 import club.ttg.subscriber.domain.subscription.model.RewardResource;
+import club.ttg.subscriber.domain.subscription.model.RewardResourceAvailability;
 import club.ttg.subscriber.domain.subscription.model.UserReward;
+import club.ttg.subscriber.domain.subscription.repository.RedemptionCodeRepository;
 import club.ttg.subscriber.domain.subscription.repository.RewardResourceRepository;
 import club.ttg.subscriber.domain.subscription.repository.UserRewardRepository;
 import club.ttg.subscriber.domain.subscription.rest.dto.RewardResourceResponse;
@@ -21,8 +24,10 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -36,6 +41,7 @@ import java.util.UUID;
 public class RewardService {
     private final UserRewardRepository rewardRepository;
     private final RewardResourceRepository resourceRepository;
+    private final RedemptionCodeRepository codeRepository;
 
     /**
      * Выдаёт пользователю произвольный набор перков. Уже имеющиеся перки пропускаются.
@@ -71,9 +77,36 @@ public class RewardService {
     @Transactional(readOnly = true)
     public List<UserRewardResponse> currentUserRewards() {
         Map<RewardPerk, RewardResource> resources = resourceMap();
-        return rewardRepository.findByUsernameOrderByGrantedAtDesc(currentUsername()).stream()
-                .map(reward -> toResponse(reward, resources.get(reward.getPerk())))
+        List<UserReward> rewards = rewardRepository.findByUsernameOrderByGrantedAtDesc(currentUsername());
+        Map<UUID, String> inviteLinks = devChatInviteLinks(rewards);
+        return rewards.stream()
+                .map(reward -> toResponse(reward, resources.get(reward.getPerk()),
+                        reward.getSourceCode() == null ? null : inviteLinks.get(reward.getSourceCode())))
                 .toList();
+    }
+
+    /**
+     * Персональные приглашения в чат разработки по кодам-источникам наград
+     * {@link RewardPerk#DEV_CHAT_ACCESS} (uuid кода → ссылка). Один батч-запрос
+     * вместо чтения кода на каждую награду; практически наград с этим перком у
+     * пользователя не больше одной.
+     */
+    private Map<UUID, String> devChatInviteLinks(List<UserReward> rewards) {
+        List<UUID> sourceCodes = rewards.stream()
+                .filter(reward -> reward.getPerk() == RewardPerk.DEV_CHAT_ACCESS)
+                .map(UserReward::getSourceCode)
+                .filter(Objects::nonNull)
+                .toList();
+        if (sourceCodes.isEmpty()) {
+            return Map.of();
+        }
+        Map<UUID, String> links = new HashMap<>();
+        for (RedemptionCode code : codeRepository.findAllById(sourceCodes)) {
+            if (StringUtils.hasText(code.getTelegramInviteLink())) {
+                links.put(code.getUuid(), code.getTelegramInviteLink());
+            }
+        }
+        return links;
     }
 
     /**
@@ -84,26 +117,52 @@ public class RewardService {
      * берут через {@link #resourceMap()} один раз и переиспользуют для многих кодов,
      * чтобы не сканировать reward_resource на каждый код.
      *
-     * @param grantedAt момент получения (например, дата погашения кода)
+     * @param grantedAt         момент получения (например, дата погашения кода)
+     * @param devChatInviteLink одноразовое приглашение кода в чат разработки: для
+     *                          {@link RewardPerk#DEV_CHAT_ACCESS} оно важнее общей
+     *                          ссылки/готовности из ресурса (null — у кода его нет)
      */
     public List<UserRewardResponse> describe(Collection<RewardPerk> perks, Instant grantedAt,
-                                             Map<RewardPerk, RewardResource> resources) {
+                                             Map<RewardPerk, RewardResource> resources,
+                                             String devChatInviteLink) {
         if (perks == null || perks.isEmpty()) {
             return List.of();
         }
         return EnumSet.copyOf(perks).stream()
-                .map(perk -> describe(perk, grantedAt, resources.get(perk)))
+                .map(perk -> describe(perk, grantedAt, resources.get(perk), devChatInviteLink))
                 .toList();
     }
 
-    private UserRewardResponse describe(RewardPerk perk, Instant grantedAt, RewardResource resource) {
+    private UserRewardResponse describe(RewardPerk perk, Instant grantedAt, RewardResource resource,
+                                        String devChatInviteLink) {
         return new UserRewardResponse(
                 perk,
                 grantedAt,
                 resource == null ? null : resource.getTitle(),
-                resource == null ? null : resource.getUrl(),
-                resource == null ? null : resource.getAvailability(),
+                resolveUrl(perk, resource, devChatInviteLink),
+                resolveAvailability(perk, resource, devChatInviteLink),
                 resource == null ? null : resource.getNote());
+    }
+
+    /** Ссылка награды: персональное приглашение в чат (если есть) важнее общей из ресурса. */
+    private static String resolveUrl(RewardPerk perk, RewardResource resource, String devChatInviteLink) {
+        if (perk == RewardPerk.DEV_CHAT_ACCESS && StringUtils.hasText(devChatInviteLink)) {
+            return devChatInviteLink;
+        }
+        return resource == null ? null : resource.getUrl();
+    }
+
+    /**
+     * Готовность награды: персональное приглашение готово по определению, даже если
+     * общий ресурс перка помечен «Скоро» (COMING_SOON у ресурса описывает общий контент
+     * и правится админом в рантайме — он не должен прятать уже выпущенную ссылку кода).
+     */
+    private static RewardResourceAvailability resolveAvailability(RewardPerk perk, RewardResource resource,
+                                                                  String devChatInviteLink) {
+        if (perk == RewardPerk.DEV_CHAT_ACCESS && StringUtils.hasText(devChatInviteLink)) {
+            return RewardResourceAvailability.AVAILABLE;
+        }
+        return resource == null ? null : resource.getAvailability();
     }
 
     /** Весь конфиг контента наград (perk → ссылка/статус готовности) для админки. */
@@ -146,13 +205,13 @@ public class RewardService {
         return map;
     }
 
-    private UserRewardResponse toResponse(UserReward reward, RewardResource resource) {
+    private UserRewardResponse toResponse(UserReward reward, RewardResource resource, String devChatInviteLink) {
         return new UserRewardResponse(
                 reward.getPerk(),
                 reward.getGrantedAt(),
                 resource == null ? null : resource.getTitle(),
-                resource == null ? null : resource.getUrl(),
-                resource == null ? null : resource.getAvailability(),
+                resolveUrl(reward.getPerk(), resource, devChatInviteLink),
+                resolveAvailability(reward.getPerk(), resource, devChatInviteLink),
                 resource == null ? null : resource.getNote());
     }
 

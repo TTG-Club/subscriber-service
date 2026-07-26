@@ -70,6 +70,14 @@ public class RedemptionCode {
     @Column(name = "label")
     private String label;
 
+    /**
+     * Одноразовая ссылка-приглашение в секретный чат разработки (Telegram,
+     * {@code member_limit=1}). Выпускается ботом при создании кода с перком
+     * {@link RewardPerk#DEV_CHAT_ACCESS}; null — код её не несёт либо выпущен до фичи.
+     */
+    @Column(name = "telegram_invite_link", length = 512)
+    private String telegramInviteLink;
+
     @Column(name = "redeemed_by")
     private String redeemedBy;
 

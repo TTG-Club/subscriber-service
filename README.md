@@ -67,3 +67,15 @@ Service-to-service (заголовок `X-Service-Token`, **без** JWT):
 `POST {CORE_API_URL}/api/internal/achievements/grant` (`CoreApiAchievementClient`, заголовок
 `X-Service-Token`). Ошибка вызова только логируется и не валит погашение. Эндпоинт на стороне
 core-api появится позже.
+
+## Приглашения в Telegram-чат разработки
+
+Токен бота живёт в core-api. Для кодов с перком `DEV_CHAT_ACCESS` (в т.ч. любых тиров 4+)
+сервис при **выпуске** просит core-api создать одноразовую ссылку-приглашение
+(`POST {CORE_API_URL}/api/internal/telegram/dev-chat-invite`, `CoreApiTelegramInviteClient`,
+заголовок `X-Service-Token`) и хранит её в `redemption_code.telegram_invite_link`. Вызов
+**обязательный**: ошибка откатывает выпуск всей партии; партия таких кодов ограничена 50 шт.
+При **погашении** кода без ссылки (выпущен до фичи) работает best-effort фолбэк — ошибка
+только логируется. Пользователь видит ссылку в наградах кода (`/api/subscriptions/my-codes`,
+`/api/rewards/me`): персональная ссылка кода приоритетнее общей из `reward_resource`.
+Новых env-переменных у сервиса нет; id чата (`TELEGRAM_DEV_CHAT_ID`) настраивается в core-api.

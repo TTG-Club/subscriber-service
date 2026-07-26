@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/changes/006-create-reward-resource.yaml
   - include:
       file: db/changelog/changes/007-seed-reward-resource.yaml
+  - include:
+      file: db/changelog/changes/008-add-redemption-code-telegram-invite.yaml

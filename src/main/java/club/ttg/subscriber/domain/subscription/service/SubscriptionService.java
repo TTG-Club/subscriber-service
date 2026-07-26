@@ -2,6 +2,7 @@ package club.ttg.subscriber.domain.subscription.service;
 
 import club.ttg.subscriber.client.AuthServiceRoleClient;
 import club.ttg.subscriber.client.CoreApiAchievementClient;
+import club.ttg.subscriber.client.CoreApiTelegramInviteClient;
 import club.ttg.subscriber.domain.subscription.model.RedemptionCode;
 import club.ttg.subscriber.domain.subscription.model.RewardPerk;
 import club.ttg.subscriber.domain.subscription.model.RewardResource;
@@ -57,6 +58,12 @@ public class SubscriptionService {
     private static final int CODE_LENGTH = 16;
     private static final int MAX_CODE_ATTEMPTS = 20;
     private static final int MAX_BATCH_SIZE = 1000;
+    /**
+     * Потолок партии кодов с {@link RewardPerk#DEV_CHAT_ACCESS}: на каждый такой код
+     * бот выпускает ссылку-приглашение отдельным вызовом Telegram внутри транзакции
+     * выпуска, поэтому большие партии недопустимо растягивают запрос.
+     */
+    private static final int MAX_DEV_CHAT_BATCH_SIZE = 50;
     /** Роль раннего доступа, выдаётся auth-service при погашении кода с EARLY_ACCESS_DOWNLOAD. */
     private static final String EARLY_ACCESS_ROLE = "VTTG";
 
@@ -65,6 +72,7 @@ public class SubscriptionService {
     private final RewardService rewardService;
     private final CoreApiAchievementClient achievementClient;
     private final AuthServiceRoleClient authRoleClient;
+    private final CoreApiTelegramInviteClient telegramInviteClient;
     private final SecureRandom random = new SecureRandom();
 
     /**
@@ -82,6 +90,21 @@ public class SubscriptionService {
         if (request.subscriptionMonths() == null && request.rewardTier() == null && !hasPerks && !hasAchievements) {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "Код должен нести подписку, тир, перки или достижения");
+        }
+
+        // эффективные перки = пресет тира ∪ доп. перки — как при погашении
+        Set<RewardPerk> effectivePerks = EnumSet.noneOf(RewardPerk.class);
+        if (request.rewardTier() != null) {
+            effectivePerks.addAll(request.rewardTier().perks());
+        }
+        if (hasPerks) {
+            effectivePerks.addAll(request.perks());
+        }
+        boolean needsInvite = effectivePerks.contains(RewardPerk.DEV_CHAT_ACCESS);
+        if (needsInvite && count > MAX_DEV_CHAT_BATCH_SIZE) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Кодов с доступом в приватный чат можно выпустить не больше "
+                            + MAX_DEV_CHAT_BATCH_SIZE + " за раз");
         }
 
         // Подписка: явно заданный в запросе срок важнее; иначе берём пресет тира (тип — GIFT).
@@ -115,9 +138,42 @@ public class SubscriptionService {
             code.setPerks(hasPerks ? EnumSet.copyOf(request.perks()) : new HashSet<>());
             code.setAchievements(hasAchievements ? new HashSet<>(request.achievements()) : new HashSet<>());
             code.setLabel(request.label());
+            if (needsInvite) {
+                code.setTelegramInviteLink(mintInvite(code.getCode()));
+            }
             result.add(toResponse(codeRepository.save(code)));
         }
         return result;
+    }
+
+    /**
+     * Выпускает через core-api одноразовую ссылку-приглашение в чат разработки
+     * (Telegram, {@code member_limit=1}); подписью ссылки служит сам код — так в списке
+     * приглашений чата видно, чей это инвайт. Вызов обязателен: любая ошибка откатывает
+     * всю транзакцию выпуска, чтобы не появились коды с перком чата, но без ссылки.
+     * Уже выпущенные в Telegram ссылки отменённой партии безвредны — их никто не увидит.
+     */
+    private String mintInvite(String codeString) {
+        try {
+            return telegramInviteClient.createDevChatInvite(codeString);
+        } catch (RestClientResponseException httpError) {
+            // core-api ответил статусом-ошибкой: 4xx детерминированны (не настроена интеграция,
+            // неверный service-token и т.п.) — повтор не поможет; 5xx/503 можно повторить.
+            log.error("core-api отклонил выпуск приглашения в чат для кода {}: {}",
+                    codeString, httpError.getStatusCode());
+            if (httpError.getStatusCode().is4xxClientError()) {
+                throw new ApiException(HttpStatus.BAD_GATEWAY,
+                        "Не удалось выпустить приглашение в чат разработки, обратитесь в поддержку");
+            }
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Сервис временно недоступен, попробуйте позже");
+        } catch (Exception exception) {
+            // сеть/таймаут/прочее — транзиентно, повтор может помочь
+            log.error("core-api недоступен при выпуске приглашения в чат для кода {}: {}",
+                    codeString, exception.getMessage());
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Сервис временно недоступен, попробуйте позже");
+        }
     }
 
     /**
@@ -165,6 +221,20 @@ public class SubscriptionService {
         }
         perks.addAll(code.getPerks());
         List<RewardPerk> grantedPerks = rewardService.grantPerks(username, perks, code.getUuid());
+
+        // Фолбэк для кодов, выпущенных до фичи приглашений (например, старые TIER_4+):
+        // ссылки у них нет — пробуем выпустить при погашении, best-effort (без ссылки
+        // пользователь увидит «Ссылка появится позже», погашение не валим). Пишем колонку
+        // отдельным update: сущность после bulk-`claim` устарела, и её save затёр бы redeemed_by.
+        if (perks.contains(RewardPerk.DEV_CHAT_ACCESS) && code.getTelegramInviteLink() == null) {
+            try {
+                codeRepository.updateTelegramInviteLink(code.getUuid(),
+                        telegramInviteClient.createDevChatInvite(code.getCode()));
+            } catch (Exception exception) {
+                log.warn("Не удалось выпустить приглашение в чат при погашении кода {}: {}",
+                        code.getUuid(), exception.getMessage());
+            }
+        }
 
         // Ранний доступ → роль VTTG в auth-service. НЕ best-effort: любая ошибка откатывает
         // всю транзакцию погашения (код останется непогашенным), чтобы не выдать перки/
@@ -467,7 +537,8 @@ public class SubscriptionService {
                             code.getCode(),
                             code.getRedeemedAt(),
                             code.getRewardTier(),
-                            rewardService.describe(perks, code.getRedeemedAt(), resources),
+                            rewardService.describe(perks, code.getRedeemedAt(), resources,
+                                    code.getTelegramInviteLink()),
                             code.getAchievements() == null ? Set.of() : new HashSet<>(code.getAchievements()),
                             subscription == null ? null : toResponse(subscription, now));
                 })
@@ -527,6 +598,7 @@ public class SubscriptionService {
                 code.getPerks() == null ? Set.of() : new HashSet<>(code.getPerks()),
                 code.getAchievements() == null ? Set.of() : new HashSet<>(code.getAchievements()),
                 code.getLabel(),
+                code.getTelegramInviteLink(),
                 code.getRedeemedBy(),
                 code.getRedeemedAt(),
                 code.isDisabled(),
