@@ -186,7 +186,7 @@ public class PaymentService {
             return invalid(accountId, transactionId);
         }
 
-        SubscriptionResponse subscription = subscriptionService.purchase(payment.getUsername(), payment.getMonths());
+        SubscriptionResponse subscription = subscriptionService.purchase(payment.getUsername(), payment.getMonths(), payment.getAmount());
         payment.setStatus(PaymentStatus.PAID);
         payment.setOperationId(operationId);
         payment.setTestMode(TEST_MODE_ON.equals(testMode));

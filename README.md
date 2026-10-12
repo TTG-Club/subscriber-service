@@ -42,6 +42,8 @@ Docker-образ собирается по `Dockerfile` (multi-stage), депл
 - `GET    /api/admin/subscriptions/{userId}` — подписки пользователя
 - `PUT    /api/admin/subscriptions/{userId}/grant` — `{ "months": N }` выдать/продлить
 - `DELETE /api/admin/subscriptions/{userId}` — немедленно отключить активные подписки
+- `GET    /api/admin/subscriptions/{userId}/codes` — промокоды, погашённые пользователем
+- `GET    /api/admin/subscriptions/{userId}/history` — история подписки: оплаты, выдачи и отключения админом, промокоды, с датой окончания до и после (новые сверху; ведётся с 12.10.2026)
 
 Service-to-service (заголовок `X-Service-Token`, **без** JWT):
 - `GET /api/internal/subscriptions/{userId}/status` — статус для core-api `VttgAccessService` и auth-service

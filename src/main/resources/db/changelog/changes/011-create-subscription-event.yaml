@@ -1,0 +1,56 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-create-subscription-event
+      author: peterko
+      changes:
+        - createTable:
+            schemaName: subscriber
+            tableName: subscription_event
+            columns:
+              - column:
+                  name: uuid
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_subscription_event
+              - column:
+                  name: owner_username
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: type
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: months
+                  type: INT
+              - column:
+                  name: expires_before
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: expires_after
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: actor_username
+                  type: VARCHAR(255)
+              - column:
+                  name: code
+                  type: VARCHAR(64)
+              - column:
+                  name: amount
+                  type: NUMERIC(12, 2)
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - createIndex:
+            schemaName: subscriber
+            tableName: subscription_event
+            indexName: idx_subscription_event_owner
+            columns:
+              - column:
+                  name: owner_username
+              - column:
+                  name: created_at

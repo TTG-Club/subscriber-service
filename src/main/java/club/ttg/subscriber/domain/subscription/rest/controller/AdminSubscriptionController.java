@@ -3,6 +3,8 @@ package club.ttg.subscriber.domain.subscription.rest.controller;
 import club.ttg.subscriber.domain.subscription.rest.dto.AdminSubscriptionStatusResponse;
 import club.ttg.subscriber.domain.subscription.rest.dto.GrantSubscriptionRequest;
 import club.ttg.subscriber.domain.subscription.rest.dto.RedemptionCodeResponse;
+import club.ttg.subscriber.domain.subscription.rest.dto.SubscriptionEventResponse;
+import club.ttg.subscriber.domain.subscription.service.SubscriptionHistoryService;
 import club.ttg.subscriber.domain.subscription.service.SubscriptionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,7 +24,8 @@ import java.util.List;
 /**
  * Админское управление подписками пользователей. Идентификатор пользователя `{userId}`
  * трактуется как его username из auth-service (так подписки хранятся в `owner_username`).
- * Все три ручки возвращают единый сводный статус — это и читает админ-карточка сайта.
+ * Ручки статуса, выдачи и отзыва возвращают единый сводный статус — его читает админ-карточка
+ * сайта; история подписки отдаётся отдельной ручкой.
  */
 @Tag(name = "Подписки (админ)")
 @RestController
@@ -30,6 +33,7 @@ import java.util.List;
 @RequestMapping("/api/admin/subscriptions")
 public class AdminSubscriptionController {
     private final SubscriptionService subscriptionService;
+    private final SubscriptionHistoryService historyService;
 
     @Secured("ADMIN")
     @Operation(summary = "Сводный статус подписки пользователя (период, тип, активна ли)")
@@ -62,5 +66,12 @@ public class AdminSubscriptionController {
     @GetMapping("/{userId}/codes")
     public List<RedemptionCodeResponse> redeemedCodes(@PathVariable String userId) {
         return subscriptionService.redeemedCodesFor(userId);
+    }
+
+    @Secured("ADMIN")
+    @Operation(summary = "История подписки пользователя: оплаты, выдачи, отключения, промокоды (новые сверху)")
+    @GetMapping("/{userId}/history")
+    public List<SubscriptionEventResponse> history(@PathVariable String userId) {
+        return historyService.historyFor(userId);
     }
 }

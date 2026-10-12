@@ -33,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -104,7 +105,7 @@ class PaymentServiceTest {
     }
 
     private void stubPurchase() {
-        when(subscriptionService.purchase(anyString(), anyInt())).thenReturn(new SubscriptionResponse(
+        when(subscriptionService.purchase(anyString(), anyInt(), any())).thenReturn(new SubscriptionResponse(
                 UUID.randomUUID(), SubscriptionType.BUY, "ACTIVE", 1, "hero", Instant.now(), Instant.now(),
                 Instant.now(), Instant.now(), Instant.now()));
     }
@@ -220,7 +221,7 @@ class PaymentServiceTest {
         assertThat(repeated.resultCode()).isEqualTo(PaymentNotificationResult.PAID);
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PAID);
         assertThat(payment.getOperationId()).isEqualTo("987654");
-        verify(subscriptionService).purchase("hero", 1);
+        verify(subscriptionService).purchase(eq("hero"), eq(1), any());
         assertThat(first.receipt()).isEqualTo(
                 new PaymentReceipt("hero@example.com", "Подписка TTG Club на 1 мес.", new BigDecimal("300.00")));
         assertThat(repeated.receipt()).isEqualTo(first.receipt());
@@ -236,7 +237,7 @@ class PaymentServiceTest {
         params.put("MNT_SIGNATURE", "00000000000000000000000000000000");
 
         assertThat(service(true, true).handleNotification(params).isFail()).isTrue();
-        verify(subscriptionService, never()).purchase(anyString(), anyInt());
+        verify(subscriptionService, never()).purchase(anyString(), anyInt(), any());
     }
 
     @Test
@@ -249,7 +250,7 @@ class PaymentServiceTest {
 
         assertThat(result.resultCode()).isEqualTo(PaymentNotificationResult.INVALID_ORDER);
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REJECTED);
-        verify(subscriptionService, never()).purchase(anyString(), anyInt());
+        verify(subscriptionService, never()).purchase(anyString(), anyInt(), any());
     }
 
     @Test
@@ -260,7 +261,7 @@ class PaymentServiceTest {
         PaymentNotificationResult result = service(false, false).handleNotification(notification(id, "300.00", "1"));
 
         assertThat(result.resultCode()).isEqualTo(PaymentNotificationResult.INVALID_ORDER);
-        verify(subscriptionService, never()).purchase(anyString(), anyInt());
+        verify(subscriptionService, never()).purchase(anyString(), anyInt(), any());
     }
 
     @Test

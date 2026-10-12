@@ -6,6 +6,7 @@ import club.ttg.subscriber.client.TelegramInviteClient;
 import club.ttg.subscriber.domain.subscription.model.RedemptionCode;
 import club.ttg.subscriber.domain.subscription.model.RewardPerk;
 import club.ttg.subscriber.domain.subscription.model.RewardResource;
+import club.ttg.subscriber.domain.subscription.model.SubscriptionEventType;
 import club.ttg.subscriber.domain.subscription.model.SubscriptionType;
 import club.ttg.subscriber.domain.subscription.model.UserSubscription;
 import club.ttg.subscriber.domain.subscription.repository.RedemptionCodeRepository;
@@ -28,6 +29,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestClientResponseException;
 
+import java.math.BigDecimal;
 import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -74,6 +76,7 @@ public class SubscriptionService {
     private final CoreApiAchievementClient achievementClient;
     private final AuthServiceRoleClient authRoleClient;
     private final TelegramInviteClient telegramInviteClient;
+    private final SubscriptionHistoryService historyService;
     private final SecureRandom random = new SecureRandom();
 
     /**
@@ -230,6 +233,10 @@ public class SubscriptionService {
             entity.setSourceCode(code.getUuid());
             entity.setRegisteredAt(now);
             subscription = toResponse(subscriptionRepository.save(entity), now);
+            // срок не идёт до активации — окончание действующей подписки не меняется
+            Instant expires = currentExpiry(username, now);
+            historyService.record(new SubscriptionHistoryService.Change(username, SubscriptionEventType.CODE_REDEEM,
+                    code.getSubscriptionMonths(), expires, expires, username, code.getCode(), null));
         }
 
         // перки = пресет тира ∪ произвольный набор кода
@@ -314,10 +321,17 @@ public class SubscriptionService {
         }
 
         Instant now = Instant.now();
+        Instant expiresBefore = currentExpiry(username, now);
         subscription.setStartsAt(now);
         subscription.setExpiresAt(ZonedDateTime.ofInstant(now, ZoneOffset.UTC)
                 .plusMonths(subscription.getDurationMonths())
                 .toInstant());
+        String code = subscription.getSourceCode() == null
+                ? null
+                : codeRepository.findById(subscription.getSourceCode()).map(RedemptionCode::getCode).orElse(null);
+        historyService.record(new SubscriptionHistoryService.Change(username, SubscriptionEventType.ACTIVATE,
+                subscription.getDurationMonths(), expiresBefore, latest(expiresBefore, subscription.getExpiresAt()),
+                username, code, null));
 
         return toResponse(subscription, now);
     }
@@ -475,6 +489,7 @@ public class SubscriptionService {
         UserSubscription subscription = subscriptionRepository
                 .findFirstByOwnerUsernameAndStartsAtIsNotNullAndExpiresAtAfterOrderByExpiresAtDesc(username, now)
                 .orElse(null);
+        Instant expiresBefore = subscription == null ? null : subscription.getExpiresAt();
 
         if (subscription == null) {
             subscription = new UserSubscription();
@@ -490,6 +505,10 @@ public class SubscriptionService {
             subscription.setDurationMonths(subscription.getDurationMonths() + months);
         }
 
+        historyService.record(new SubscriptionHistoryService.Change(username, SubscriptionEventType.GRANT,
+                months, expiresBefore, latest(expiresBefore, subscription.getExpiresAt()),
+                SecurityUtils.currentUsername(), null, null));
+
         return toResponse(subscriptionRepository.save(subscription), now);
     }
 
@@ -497,9 +516,11 @@ public class SubscriptionService {
      * Подписка, оплаченная пользователем (тип {@link SubscriptionType#BUY}). Создаётся
      * отдельной активной записью: `startsAt = now`, а `expiresAt` отсчитывается от конца
      * текущей активной подписки (если она есть), так что оплаченные месяцы не сгорают.
+     *
+     * @param amount сумма оплаты в рублях — для истории подписки
      */
     @Transactional
-    public SubscriptionResponse purchase(String username, int months) {
+    public SubscriptionResponse purchase(String username, int months, BigDecimal amount) {
         if (!StringUtils.hasText(username)) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Не указан пользователь");
         }
@@ -521,6 +542,10 @@ public class SubscriptionService {
         subscription.setStartsAt(now);
         subscription.setExpiresAt(plusMonths(base, months));
 
+        Instant expiresBefore = base.equals(now) ? null : base;
+        historyService.record(new SubscriptionHistoryService.Change(username, SubscriptionEventType.PURCHASE,
+                months, expiresBefore, subscription.getExpiresAt(), username, null, amount));
+
         return toResponse(subscriptionRepository.save(subscription), now);
     }
 
@@ -536,6 +561,7 @@ public class SubscriptionService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "Не указан пользователь");
         }
         Instant now = Instant.now();
+        Instant expiresBefore = currentExpiry(username, now);
         List<SubscriptionResponse> revoked = new ArrayList<>();
         for (UserSubscription subscription : subscriptionRepository.findByOwnerUsernameOrderByCreatedAtDesc(username)) {
             boolean active = subscription.getStartsAt() != null
@@ -546,6 +572,10 @@ public class SubscriptionService {
             }
             subscription.setExpiresAt(now);
             revoked.add(toResponse(subscriptionRepository.save(subscription), now));
+        }
+        if (!revoked.isEmpty()) {
+            historyService.record(new SubscriptionHistoryService.Change(username, SubscriptionEventType.REVOKE,
+                    null, expiresBefore, null, SecurityUtils.currentUsername(), null, null));
         }
         return revoked;
     }
@@ -592,6 +622,25 @@ public class SubscriptionService {
                             subscription == null ? null : toResponse(subscription, now));
                 })
                 .toList();
+    }
+
+    /** Окончание действующей подписки пользователя (null — активной подписки нет). */
+    private Instant currentExpiry(String username, Instant now) {
+        return subscriptionRepository
+                .findFirstByOwnerUsernameAndStartsAtIsNotNullAndExpiresAtAfterOrderByExpiresAtDesc(username, now)
+                .map(UserSubscription::getExpiresAt)
+                .orElse(null);
+    }
+
+    /** Более поздняя из двух дат; null — «нет даты». */
+    private static Instant latest(Instant first, Instant second) {
+        if (first == null) {
+            return second;
+        }
+        if (second == null) {
+            return first;
+        }
+        return first.isAfter(second) ? first : second;
     }
 
     private Instant plusMonths(Instant base, int months) {
