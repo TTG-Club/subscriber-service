@@ -2,6 +2,7 @@ package club.ttg.subscriber.domain.payment.service;
 
 import club.ttg.subscriber.client.AuthServiceAccountClient;
 import club.ttg.subscriber.client.AuthServiceAccountClient.AccountStatus;
+import club.ttg.subscriber.client.AuthServiceMailClient.SubscriptionPaidMail;
 import club.ttg.subscriber.domain.payment.model.Payment;
 import club.ttg.subscriber.domain.payment.model.PaymentStatus;
 import club.ttg.subscriber.domain.payment.repository.PaymentRepository;
@@ -15,6 +16,7 @@ import club.ttg.subscriber.security.AuthUser;
 import club.ttg.subscriber.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -51,6 +53,7 @@ public class PaymentService {
     private final SubscriptionService subscriptionService;
     private final PayAnyWaySettings settings;
     private final AuthServiceAccountClient authServiceAccountClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     /** Текущие условия оплаты: цена месяца, валюта и предел срока из настроек. */
     public PaymentTermsResponse terms() {
@@ -190,10 +193,23 @@ public class PaymentService {
         payment.setPaidAt(Instant.now());
         payment.setSubscriptionUuid(subscription.id());
         paymentRepository.save(payment);
+        publishPaidMail(payment, subscription);
         log.info("PayAnyWay: платёж {} оплачен (операция {}, тест: {}), подписка {} продлена до {}",
                 transactionId, operationId, payment.isTestMode(), payment.getUsername(), subscription.expiresAt());
 
         return paid(accountId, transactionId, payment);
+    }
+
+    /** Письмо об оплате уйдёт после фиксации транзакции (см. {@link SubscriptionPaidMailListener}). */
+    private void publishPaidMail(Payment payment, SubscriptionResponse subscription) {
+        if (!StringUtils.hasText(payment.getEmail())) {
+            return;
+        }
+        String subscriptionUrl = StringUtils.hasText(settings.getSiteUrl())
+                ? settings.getSiteUrl() + SUBSCRIPTION_PAGE_PATH
+                : null;
+        eventPublisher.publishEvent(new SubscriptionPaidMail(payment.getEmail(), payment.getUsername(),
+                payment.getMonths(), payment.getAmount(), subscription.expiresAt(), subscriptionUrl));
     }
 
     /** Подпись XML-ответа на уведомление. */

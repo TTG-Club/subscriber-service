@@ -2,6 +2,7 @@ package club.ttg.subscriber.domain.payment.service;
 
 import club.ttg.subscriber.client.AuthServiceAccountClient;
 import club.ttg.subscriber.client.AuthServiceAccountClient.AccountStatus;
+import club.ttg.subscriber.client.AuthServiceMailClient.SubscriptionPaidMail;
 import club.ttg.subscriber.domain.payment.model.Payment;
 import club.ttg.subscriber.domain.payment.model.PaymentStatus;
 import club.ttg.subscriber.domain.payment.repository.PaymentRepository;
@@ -14,6 +15,7 @@ import club.ttg.subscriber.exception.ApiException;
 import club.ttg.subscriber.security.AuthUser;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 
@@ -44,6 +46,7 @@ class PaymentServiceTest {
     private final PaymentRepository paymentRepository = mock(PaymentRepository.class);
     private final SubscriptionService subscriptionService = mock(SubscriptionService.class);
     private final AuthServiceAccountClient accountClient = mock(AuthServiceAccountClient.class);
+    private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
 
     @AfterEach
     void clearContext() {
@@ -58,7 +61,7 @@ class PaymentServiceTest {
         PayAnyWaySettings settings = new PayAnyWaySettings(ACCOUNT, CODE,
                 "https://www.payanyway.ru/assistant.htm", testMode, adminOnly, new BigDecimal("300"), maxMonths,
                 "https://dev.ttg.club/");
-        return new PaymentService(paymentRepository, subscriptionService, settings, accountClient);
+        return new PaymentService(paymentRepository, subscriptionService, settings, accountClient, eventPublisher);
     }
 
     private static CreatePaymentRequest request(int months) {
@@ -118,7 +121,7 @@ class PaymentServiceTest {
         login("ADMIN");
         PaymentService noPrice = new PaymentService(paymentRepository, subscriptionService,
                 new PayAnyWaySettings(ACCOUNT, CODE, "https://www.payanyway.ru/assistant.htm",
-                        true, true, null, 0, "https://dev.ttg.club/"), accountClient);
+                        true, true, null, 0, "https://dev.ttg.club/"), accountClient, eventPublisher);
 
         assertThatThrownBy(noPrice::terms).isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> noPrice.create(request(1), TOKEN)).isInstanceOf(ApiException.class);
@@ -221,6 +224,9 @@ class PaymentServiceTest {
         assertThat(first.receipt()).isEqualTo(
                 new PaymentReceipt("hero@example.com", "Подписка TTG Club на 1 мес.", new BigDecimal("300.00")));
         assertThat(repeated.receipt()).isEqualTo(first.receipt());
+        verify(eventPublisher).publishEvent(argThat((Object event) -> event instanceof SubscriptionPaidMail mail
+                && "hero@example.com".equals(mail.email()) && mail.months() == 1
+                && "https://dev.ttg.club/vttg/subscription".equals(mail.subscriptionUrl())));
     }
 
     @Test

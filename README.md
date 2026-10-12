@@ -111,6 +111,8 @@ PayAnyWay присылает уведомление на Pay URL; сервис �
 принимается только при `PAYANYWAY_TEST_MODE=true`. В ответе на принятую оплату передаются данные чека:
 позиция (`INVENTORY`, «НДС не облагается») и почта для чека, указанная при оплате (`CUSTOMER`),
 на неё PayAnyWay отправляет чек.
+После оплаты на ту же почту уходит наше письмо со сроком подписки: subscriber просит auth-service
+(`POST /api/internal/mail/subscription-paid`, `X-Service-Token`), ошибка почты оплату не отменяет.
 
 Настройки счёта в личном кабинете PayAnyWay:
 - Pay URL — `https://<сайт>/api/subscriptions/payments/payanyway` (сайт проксирует его сюда), метод POST;
