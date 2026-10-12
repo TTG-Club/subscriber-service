@@ -1,0 +1,58 @@
+package club.ttg.subscriber.domain.payment.service;
+
+import lombok.Getter;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+import java.math.BigDecimal;
+
+/**
+ * Настройки приёма оплаты через PayAnyWay (MONETA.Assistant). Номер счёта и код проверки
+ * целостности задаются только переменными окружения; пока они не заданы, оплата выключена.
+ */
+@Getter
+@Component
+public class PayAnyWaySettings {
+    /** Номер расширенного счёта магазина ({@code MNT_ID}). */
+    private final String accountId;
+    /** Код проверки целостности данных из настроек счёта. Секрет: участвует во всех подписях. */
+    private final String integrityCode;
+    /** Адрес платёжной формы (рабочая площадка или demo.moneta.ru). */
+    private final String formUrl;
+    /** Тестовый режим: деньги не списываются, принимаются только тестовые уведомления. */
+    private final boolean testMode;
+    /** Оплата доступна только администраторам (на время проверки). */
+    private final boolean adminOnly;
+    /** Цена подписки за {@link #months} месяцев, в рублях. */
+    private final BigDecimal price;
+    /** Срок, на который продлевается подписка после оплаты. */
+    private final int months;
+    /** Адрес сайта, куда платёжная форма вернёт пользователя (без завершающего слэша). */
+    private final String siteUrl;
+
+    public PayAnyWaySettings(
+            @Value("${payanyway.account-id:}") String accountId,
+            @Value("${payanyway.integrity-code:}") String integrityCode,
+            @Value("${payanyway.form-url}") String formUrl,
+            @Value("${payanyway.test-mode:true}") boolean testMode,
+            @Value("${payanyway.admin-only:true}") boolean adminOnly,
+            @Value("${payanyway.price:300.00}") BigDecimal price,
+            @Value("${payanyway.months:1}") int months,
+            @Value("${payanyway.site-url:}") String siteUrl
+    ) {
+        this.accountId = accountId == null ? "" : accountId.trim();
+        this.integrityCode = integrityCode == null ? "" : integrityCode;
+        this.formUrl = formUrl;
+        this.testMode = testMode;
+        this.adminOnly = adminOnly;
+        this.price = price;
+        this.months = months;
+        this.siteUrl = StringUtils.trimTrailingCharacter(siteUrl == null ? "" : siteUrl.trim(), '/');
+    }
+
+    /** Заданы ли номер счёта и код проверки целостности. */
+    public boolean isConfigured() {
+        return StringUtils.hasText(accountId) && StringUtils.hasText(integrityCode);
+    }
+}

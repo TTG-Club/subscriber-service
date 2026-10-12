@@ -1,0 +1,68 @@
+databaseChangeLog:
+  - changeSet:
+      id: 009-create-payment
+      author: peterko
+      changes:
+        - createTable:
+            schemaName: subscriber
+            tableName: payment
+            columns:
+              - column:
+                  name: uuid
+                  type: UUID
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_payment
+              - column:
+                  name: username
+                  type: VARCHAR(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: amount
+                  type: NUMERIC(12, 2)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: currency
+                  type: VARCHAR(3)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: months
+                  type: INT
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: VARCHAR(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: test_mode
+                  type: BOOLEAN
+                  constraints:
+                    nullable: false
+              - column:
+                  name: operation_id
+                  type: VARCHAR(64)
+              - column:
+                  name: subscription_uuid
+                  type: UUID
+              - column:
+                  name: paid_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: created_at
+                  type: TIMESTAMP WITH TIME ZONE
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - createIndex:
+            schemaName: subscriber
+            tableName: payment
+            indexName: idx_payment_username
+            columns:
+              - column:
+                  name: username

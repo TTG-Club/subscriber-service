@@ -60,6 +60,16 @@ telegram:
   connect-timeout: ${TELEGRAM_CONNECT_TIMEOUT:3s}
   read-timeout: ${TELEGRAM_READ_TIMEOUT:10s}
 
+payanyway:
+  account-id: ${PAYANYWAY_ACCOUNT_ID:}
+  integrity-code: ${PAYANYWAY_INTEGRITY_CODE:}
+  form-url: ${PAYANYWAY_FORM_URL:https://www.payanyway.ru/assistant.htm}
+  test-mode: ${PAYANYWAY_TEST_MODE:true}
+  admin-only: ${PAYANYWAY_ADMIN_ONLY:true}
+  price: ${PAYANYWAY_PRICE:300.00}
+  months: ${PAYANYWAY_MONTHS:1}
+  site-url: ${PAYANYWAY_SITE_URL:}
+
 springdoc:
   api-docs:
     enabled: ${SPRINGDOC_ENABLED:false}

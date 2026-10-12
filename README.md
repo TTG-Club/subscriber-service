@@ -30,6 +30,8 @@ Docker-образ собирается по `Dockerfile` (multi-stage), депл
 - `GET  /api/subscriptions/status` — реал-тайм статус текущего пользователя
 - `GET  /api/subscriptions/my`, `GET /api/subscriptions/my-codes`
 - `GET  /api/rewards/me`, `GET /api/rewards/supporters`
+- `POST /api/subscriptions/payments` — создать платёж и получить ссылку на форму PayAnyWay
+  (пока `PAYANYWAY_ADMIN_ONLY=true`, только для `ADMIN`)
 
 Админские (`@Secured("ADMIN")`):
 - `POST /api/subscriptions/codes`, `GET /api/subscriptions/codes`
@@ -42,6 +44,9 @@ Docker-образ собирается по `Dockerfile` (multi-stage), депл
 
 Service-to-service (заголовок `X-Service-Token`, **без** JWT):
 - `GET /api/internal/subscriptions/{userId}/status` — статус для core-api `VttgAccessService` и auth-service
+
+Уведомление PayAnyWay об оплате (без JWT, проверяется подписью):
+- `GET|POST /api/subscriptions/payments/payanyway` — Pay URL
 
 ## Переменные окружения (Dokploy)
 
@@ -60,6 +65,14 @@ Service-to-service (заголовок `X-Service-Token`, **без** JWT):
 | `SERVER_PORT`                  | порт приложения (по умолчанию 8083)                                        |
 | `APP_ALLOWED_FRONTEND_ORIGINS` | список разрешённых CORS-origin фронтенда (через запятую)                   |
 | `SPRINGDOC_ENABLED`            | включить Swagger UI / OpenAPI (по умолчанию false)                         |
+| `PAYANYWAY_ACCOUNT_ID`         | номер расширенного счёта PayAnyWay (`MNT_ID`); пусто — оплата выключена   |
+| `PAYANYWAY_INTEGRITY_CODE`     | код проверки целостности данных из настроек счёта (секрет)                 |
+| `PAYANYWAY_FORM_URL`           | платёжная форма (по умолчанию `https://www.payanyway.ru/assistant.htm`, демо — `https://demo.moneta.ru/assistant.htm`) |
+| `PAYANYWAY_TEST_MODE`          | `true` — `MNT_TEST_MODE=1`, деньги не списываются (по умолчанию true)     |
+| `PAYANYWAY_ADMIN_ONLY`         | `true` — платить могут только администраторы (по умолчанию true)          |
+| `PAYANYWAY_PRICE`              | цена подписки в рублях (по умолчанию 300.00)                               |
+| `PAYANYWAY_MONTHS`             | на сколько месяцев продлевается подписка (по умолчанию 1)                  |
+| `PAYANYWAY_SITE_URL`           | адрес сайта для возврата с формы оплаты, например `https://ttg.club`       |
 
 Секреты в репозитории не хранятся и `.env` не создаётся — значения задаются в Dokploy.
 
@@ -84,3 +97,20 @@ core-api появится позже.
 Настройка: `TELEGRAM_BOT_TOKEN` (можно тот же бот, что постит новости в core-api) и
 `TELEGRAM_DEV_CHAT_ID`. Бот должен быть **администратором** чата с правом «Приглашать
 пользователей». Пока переменные не заданы, выпуск кодов с этим перком отвечает 503.
+
+## Оплата через PayAnyWay
+
+Пользователь вызывает `POST /api/subscriptions/payments`: сервис создаёт платёж (таблица `payment`)
+и возвращает подписанную (`MNT_SIGNATURE`) ссылку на платёжную форму MONETA.Assistant. После оплаты
+PayAnyWay присылает уведомление на Pay URL; сервис проверяет подпись, номер счёта, сумму и валюту,
+продлевает подписку записью типа `BUY` и отвечает XML `MNT_RESPONSE` с кодом 200. Повторное
+уведомление по оплаченному платежу подтверждается без повторного продления; неверная подпись — ответ
+`FAIL`, и PayAnyWay повторит уведомление в течение суток. Тестовая оплата (`MNT_TEST_MODE=1`)
+принимается только при `PAYANYWAY_TEST_MODE=true`.
+
+Настройки счёта в личном кабинете PayAnyWay:
+- Pay URL — `https://<сайт>/api/subscriptions/payments/payanyway` (сайт проксирует его сюда), метод POST;
+- Check URL — пусто;
+- «Подпись формы оплаты обязательна» — включено;
+- «Можно переопределять настройки в URL» — включено (возврат на страницу подписки);
+- «Тестовый режим» — на время проверки.

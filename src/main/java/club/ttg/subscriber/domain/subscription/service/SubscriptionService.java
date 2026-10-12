@@ -494,6 +494,37 @@ public class SubscriptionService {
     }
 
     /**
+     * Подписка, оплаченная пользователем (тип {@link SubscriptionType#BUY}). Создаётся
+     * отдельной активной записью: `startsAt = now`, а `expiresAt` отсчитывается от конца
+     * текущей активной подписки (если она есть), так что оплаченные месяцы не сгорают.
+     */
+    @Transactional
+    public SubscriptionResponse purchase(String username, int months) {
+        if (!StringUtils.hasText(username)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Не указан пользователь");
+        }
+        if (months < 1) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Срок оплаты должен быть не меньше 1 месяца");
+        }
+
+        Instant now = Instant.now();
+        Instant base = subscriptionRepository
+                .findFirstByOwnerUsernameAndStartsAtIsNotNullAndExpiresAtAfterOrderByExpiresAtDesc(username, now)
+                .map(UserSubscription::getExpiresAt)
+                .orElse(now);
+
+        UserSubscription subscription = new UserSubscription();
+        subscription.setType(SubscriptionType.BUY);
+        subscription.setDurationMonths(months);
+        subscription.setOwnerUsername(username);
+        subscription.setRegisteredAt(now);
+        subscription.setStartsAt(now);
+        subscription.setExpiresAt(plusMonths(base, months));
+
+        return toResponse(subscriptionRepository.save(subscription), now);
+    }
+
+    /**
      * Админское немедленное отключение: всем активным подпискам пользователя
      * проставляет `expiresAt = now`.
      *

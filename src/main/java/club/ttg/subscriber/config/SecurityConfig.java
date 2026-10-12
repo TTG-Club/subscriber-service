@@ -1,5 +1,6 @@
 package club.ttg.subscriber.config;
 
+import club.ttg.subscriber.domain.payment.rest.controller.PaymentController;
 import club.ttg.subscriber.security.InternalServiceTokenFilter;
 import club.ttg.subscriber.security.JwtAuthFilter;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,7 +33,7 @@ import java.util.Optional;
  * по ролям через {@code @Secured} ({@code securedEnabled = true}). Аутентификация
  * пользователей идёт {@link JwtAuthFilter}, а service-to-service маршруты
  * {@code /api/internal/**} закрыты {@link InternalServiceTokenFilter}; публично открыты
- * только actuator-health и swagger.
+ * только actuator-health, swagger и уведомление PayAnyWay об оплате (защищено подписью).
  */
 @Configuration
 @RequiredArgsConstructor
@@ -179,6 +180,8 @@ public class SecurityConfig {
                         // /api/internal/** проходят на уровне Spring Security, но закрыты
                         // отдельным фильтром по заголовку X-Service-Token.
                         .requestMatchers("/api/internal/**").permitAll()
+                        // Уведомление об оплате приходит от PayAnyWay без JWT и проверяется подписью.
+                        .requestMatchers(PaymentController.NOTIFICATION_PATH).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(internalServiceTokenFilter, UsernamePasswordAuthenticationFilter.class)
