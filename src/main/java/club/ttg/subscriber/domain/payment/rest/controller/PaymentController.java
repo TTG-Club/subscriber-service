@@ -2,6 +2,7 @@ package club.ttg.subscriber.domain.payment.rest.controller;
 
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentRequest;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentResponse;
+import club.ttg.subscriber.domain.payment.rest.dto.PaymentTermsResponse;
 import club.ttg.subscriber.domain.payment.service.PaymentNotificationResult;
 import club.ttg.subscriber.domain.payment.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -11,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -34,6 +36,13 @@ public class PaymentController {
     public static final String NOTIFICATION_PATH = "/api/subscriptions/payments/payanyway";
 
     private final PaymentService paymentService;
+
+    @Secured("USER")
+    @Operation(summary = "Условия оплаты подписки: цена месяца, валюта, предел срока")
+    @GetMapping("/terms")
+    public PaymentTermsResponse terms() {
+        return paymentService.terms();
+    }
 
     @Secured("USER")
     @Operation(summary = "Создать платёж за подписку на N месяцев и получить ссылку на форму оплаты")

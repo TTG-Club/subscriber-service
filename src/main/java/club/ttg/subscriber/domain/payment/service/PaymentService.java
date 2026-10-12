@@ -4,6 +4,7 @@ import club.ttg.subscriber.domain.payment.model.Payment;
 import club.ttg.subscriber.domain.payment.model.PaymentStatus;
 import club.ttg.subscriber.domain.payment.repository.PaymentRepository;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentResponse;
+import club.ttg.subscriber.domain.payment.rest.dto.PaymentTermsResponse;
 import club.ttg.subscriber.domain.subscription.rest.dto.SubscriptionResponse;
 import club.ttg.subscriber.domain.subscription.service.SubscriptionService;
 import club.ttg.subscriber.exception.ApiException;
@@ -44,6 +45,14 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final SubscriptionService subscriptionService;
     private final PayAnyWaySettings settings;
+
+    /** Текущие условия оплаты: цена месяца, валюта и предел срока из настроек. */
+    public PaymentTermsResponse terms() {
+        return new PaymentTermsResponse(
+                settings.getPrice().setScale(2, RoundingMode.HALF_UP),
+                CURRENCY,
+                settings.hasMaxMonths() ? settings.getMaxMonths() : null);
+    }
 
     /**
      * Создаёт платёж текущего пользователя за выбранное число месяцев (цена месяца,

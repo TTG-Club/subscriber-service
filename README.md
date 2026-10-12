@@ -30,6 +30,7 @@ Docker-образ собирается по `Dockerfile` (multi-stage), депл
 - `GET  /api/subscriptions/status` — реал-тайм статус текущего пользователя
 - `GET  /api/subscriptions/my`, `GET /api/subscriptions/my-codes`
 - `GET  /api/rewards/me`, `GET /api/rewards/supporters`
+- `GET  /api/subscriptions/payments/terms` — цена месяца, валюта и предел срока (их показывает окно покупки)
 - `POST /api/subscriptions/payments` — `{ "months": N }` создать платёж на N месяцев и получить ссылку на форму PayAnyWay
   (пока `PAYANYWAY_ADMIN_ONLY=true`, только для `ADMIN`)
 

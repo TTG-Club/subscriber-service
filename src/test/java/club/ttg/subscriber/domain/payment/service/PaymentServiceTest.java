@@ -93,6 +93,13 @@ class PaymentServiceTest {
     }
 
     @Test
+    void termsExposeConfiguredPrice() {
+        assertThat(service(true, true).terms().monthPrice()).isEqualByComparingTo("300.00");
+        assertThat(service(true, true).terms().maxMonths()).isNull();
+        assertThat(service(true, true, 12).terms().maxMonths()).isEqualTo(12);
+    }
+
+    @Test
     void createRejectsNonAdminWhileAdminOnly() {
         login("USER");
 
