@@ -45,8 +45,12 @@ class PaymentServiceTest {
     }
 
     private PaymentService service(boolean testMode, boolean adminOnly) {
+        return service(testMode, adminOnly, 0);
+    }
+
+    private PaymentService service(boolean testMode, boolean adminOnly, int maxMonths) {
         PayAnyWaySettings settings = new PayAnyWaySettings(ACCOUNT, CODE,
-                "https://www.payanyway.ru/assistant.htm", testMode, adminOnly, new BigDecimal("300"), 12,
+                "https://www.payanyway.ru/assistant.htm", testMode, adminOnly, new BigDecimal("300"), maxMonths,
                 "https://dev.ttg.club/");
         return new PaymentService(paymentRepository, subscriptionService, settings);
     }
@@ -124,7 +128,8 @@ class PaymentServiceTest {
     void createRejectsTooManyMonths() {
         login("USER", "ADMIN");
 
-        assertThatThrownBy(() -> service(true, true).create(13)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service(true, true, 12).create(13)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service(true, true).create(0)).isInstanceOf(ApiException.class);
         verify(paymentRepository, never()).save(any());
     }
 

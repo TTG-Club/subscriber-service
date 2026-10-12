@@ -59,9 +59,12 @@ public class PaymentService {
         if (!settings.isConfigured()) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "Оплата временно недоступна");
         }
-        if (months < 1 || months > settings.getMaxMonths()) {
+        if (months < 1) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "Срок оплаты должен быть не меньше 1 месяца");
+        }
+        if (settings.hasMaxMonths() && months > settings.getMaxMonths()) {
             throw new ApiException(HttpStatus.BAD_REQUEST,
-                    "Оплатить можно от 1 до " + settings.getMaxMonths() + " мес.");
+                    "Оплатить можно не больше " + settings.getMaxMonths() + " мес. за раз");
         }
 
         Payment payment = new Payment();
