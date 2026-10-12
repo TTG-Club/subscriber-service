@@ -6,8 +6,9 @@ import java.util.List;
 
 /**
  * Скидка за оплату нескольких месяцев сразу: от 3 месяцев — 3%, от 6 — 6%,
- * от 12 — 9% (больше 9% не бывает). Сумма считается только здесь, сайт лишь
- * показывает её по ступеням из условий оплаты.
+ * от 12 — 9%. Отдельно — пасхалка: ровно {@link #EASTER_EGG} месяцев дают свою
+ * скидку (сайт её не рекламирует, срок набирают вручную). Сумма считается только
+ * здесь, сайт лишь показывает её по ступеням из условий оплаты.
  */
 public final class SubscriptionDiscount {
     /** Ступени скидки по возрастанию срока. */
@@ -16,14 +17,23 @@ public final class SubscriptionDiscount {
             new Tier(6, 6),
             new Tier(12, 9));
 
+    /** Пасхалка: скидка за точный срок, а не «от». */
+    public static final Exact EASTER_EGG = new Exact(36, 15);
+
     private static final BigDecimal HUNDRED = BigDecimal.valueOf(100);
 
     private SubscriptionDiscount() {
         throw new UnsupportedOperationException("This is a utility class and cannot be instantiated");
     }
 
-    /** Скидка в процентах за срок: наибольшая из ступеней, до которых срок дотянул. */
+    /**
+     * Скидка в процентах за срок: пасхалка за точный срок, иначе наибольшая из
+     * ступеней, до которых срок дотянул.
+     */
     public static int percentFor(int months) {
+        if (months == EASTER_EGG.months()) {
+            return EASTER_EGG.percent();
+        }
         int percent = 0;
         for (Tier tier : TIERS) {
             if (months >= tier.fromMonths()) {
@@ -47,5 +57,14 @@ public final class SubscriptionDiscount {
      * @param percent    скидка в процентах
      */
     public record Tier(int fromMonths, int percent) {
+    }
+
+    /**
+     * Скидка за точный срок.
+     *
+     * @param months  срок, за который действует
+     * @param percent скидка в процентах
+     */
+    public record Exact(int months, int percent) {
     }
 }

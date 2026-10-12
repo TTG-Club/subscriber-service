@@ -11,12 +11,14 @@ import java.util.List;
  * @param currency   валюта платежа
  * @param maxMonths  сколько месяцев можно оплатить за раз; {@code null} — без ограничения
  * @param discounts  ступени скидки за срок, по возрастанию срока
+ * @param exactDiscounts скидки за точный срок (пасхалки), важнее ступеней; сайт их не рекламирует
  */
 public record PaymentTermsResponse(
         BigDecimal monthPrice,
         String currency,
         Integer maxMonths,
-        List<Discount> discounts
+        List<Discount> discounts,
+        List<ExactDiscount> exactDiscounts
 ) {
     /**
      * Ступень скидки.
@@ -25,5 +27,14 @@ public record PaymentTermsResponse(
      * @param percent    скидка в процентах
      */
     public record Discount(int fromMonths, int percent) {
+    }
+
+    /**
+     * Скидка за точный срок.
+     *
+     * @param months  срок, за который действует
+     * @param percent скидка в процентах
+     */
+    public record ExactDiscount(int months, int percent) {
     }
 }

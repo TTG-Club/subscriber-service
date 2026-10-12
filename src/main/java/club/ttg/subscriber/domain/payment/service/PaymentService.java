@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -66,7 +67,9 @@ public class PaymentService {
                 settings.hasMaxMonths() ? settings.getMaxMonths() : null,
                 SubscriptionDiscount.TIERS.stream()
                         .map(tier -> new PaymentTermsResponse.Discount(tier.fromMonths(), tier.percent()))
-                        .toList());
+                        .toList(),
+                List.of(new PaymentTermsResponse.ExactDiscount(
+                        SubscriptionDiscount.EASTER_EGG.months(), SubscriptionDiscount.EASTER_EGG.percent())));
     }
 
     /**

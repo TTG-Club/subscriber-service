@@ -30,7 +30,7 @@ Docker-образ собирается по `Dockerfile` (multi-stage), депл
 - `GET  /api/subscriptions/status` — реал-тайм статус текущего пользователя
 - `GET  /api/subscriptions/my`, `GET /api/subscriptions/my-codes`
 - `GET  /api/rewards/me`, `GET /api/rewards/supporters`
-- `GET  /api/subscriptions/payments/terms` — цена месяца, валюта, предел срока и ступени скидки (их показывает окно покупки). Скидка за срок: от 3 мес. — 3%, от 6 — 6%, от 12 — 9% (`SubscriptionDiscount`), сумму платежа считает только сервер
+- `GET  /api/subscriptions/payments/terms` — цена месяца, валюта, предел срока и ступени скидки (их показывает окно покупки). Скидка за срок: от 3 мес. — 3%, от 6 — 6%, от 12 — 9%, ровно 36 мес. — 15% (пасхалка, на сайте не рекламируется; `SubscriptionDiscount`), сумму платежа считает только сервер
 - `POST /api/subscriptions/payments` — `{ "months": N, "email": "почта для чека" }` создать платёж на N месяцев и получить ссылку на форму PayAnyWay, которая сразу открывает экран оплаты картой (СБП там же отдельной кнопкой). Платить может только аккаунт с подтверждённой почтой и принятыми офертой и согласием на обработку ПД (проверка через `GET {AUTH_SERVICE_URL}/api/auth/me` с токеном пользователя)
   (пока `PAYANYWAY_ADMIN_ONLY=true`, только для `ADMIN`)
 

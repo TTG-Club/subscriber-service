@@ -18,7 +18,14 @@ class SubscriptionDiscountTest {
         assertThat(SubscriptionDiscount.percentFor(6)).isEqualTo(6);
         assertThat(SubscriptionDiscount.percentFor(11)).isEqualTo(6);
         assertThat(SubscriptionDiscount.percentFor(12)).isEqualTo(9);
-        assertThat(SubscriptionDiscount.percentFor(36)).isEqualTo(9);
+        assertThat(SubscriptionDiscount.percentFor(24)).isEqualTo(9);
+        assertThat(SubscriptionDiscount.percentFor(37)).isEqualTo(9);
+    }
+
+    @Test
+    void exactlyThirtySixMonthsIsEasterEgg() {
+        assertThat(SubscriptionDiscount.percentFor(36)).isEqualTo(15);
+        assertThat(SubscriptionDiscount.amountFor(PRICE, 36)).isEqualByComparingTo("9180.00");
     }
 
     @Test
