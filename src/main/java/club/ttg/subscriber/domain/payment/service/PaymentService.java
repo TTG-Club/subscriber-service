@@ -55,7 +55,7 @@ public class PaymentService {
     private final AuthServiceAccountClient authServiceAccountClient;
     private final ApplicationEventPublisher eventPublisher;
 
-    /** Текущие условия оплаты: цена месяца, валюта и предел срока из настроек. */
+    /** Текущие условия оплаты: цена месяца, валюта, предел срока и ступени скидки. */
     public PaymentTermsResponse terms() {
         if (!settings.isConfigured()) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "Оплата временно недоступна");
@@ -63,12 +63,15 @@ public class PaymentService {
         return new PaymentTermsResponse(
                 settings.getPrice().setScale(2, RoundingMode.HALF_UP),
                 CURRENCY,
-                settings.hasMaxMonths() ? settings.getMaxMonths() : null);
+                settings.hasMaxMonths() ? settings.getMaxMonths() : null,
+                SubscriptionDiscount.TIERS.stream()
+                        .map(tier -> new PaymentTermsResponse.Discount(tier.fromMonths(), tier.percent()))
+                        .toList());
     }
 
     /**
      * Создаёт платёж текущего пользователя за выбранное число месяцев (цена месяца,
-     * умноженная на срок) и возвращает ссылку на платёжную форму. Автопродления нет.
+     * умноженная на срок, со скидкой {@link SubscriptionDiscount}) и возвращает ссылку на платёжную форму. Автопродления нет.
      * Платить может только аккаунт с подтверждённой почтой и принятыми офертой и
      * согласием на обработку персональных данных (проверяется в auth-service).
      * Пока включён {@code payanyway.admin-only}, платить могут только администраторы.
@@ -98,7 +101,7 @@ public class PaymentService {
         Payment payment = new Payment();
         payment.setUsername(user.getUsername());
         payment.setEmail(request.email().trim());
-        payment.setAmount(settings.getPrice().multiply(BigDecimal.valueOf(months)).setScale(2, RoundingMode.HALF_UP));
+        payment.setAmount(SubscriptionDiscount.amountFor(settings.getPrice(), months));
         payment.setCurrency(CURRENCY);
         payment.setMonths(months);
         payment.setStatus(PaymentStatus.CREATED);

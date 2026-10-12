@@ -8,6 +8,7 @@ import club.ttg.subscriber.domain.payment.model.PaymentStatus;
 import club.ttg.subscriber.domain.payment.repository.PaymentRepository;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentRequest;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentResponse;
+import club.ttg.subscriber.domain.payment.rest.dto.PaymentTermsResponse;
 import club.ttg.subscriber.domain.subscription.model.SubscriptionType;
 import club.ttg.subscriber.domain.subscription.rest.dto.SubscriptionResponse;
 import club.ttg.subscriber.domain.subscription.service.SubscriptionService;
@@ -113,6 +114,8 @@ class PaymentServiceTest {
     @Test
     void termsExposeConfiguredPrice() {
         assertThat(service(true, true).terms().monthPrice()).isEqualByComparingTo("300.00");
+        assertThat(service(true, true).terms().discounts())
+                .extracting(PaymentTermsResponse.Discount::percent).containsExactly(3, 6, 9);
         assertThat(service(true, true).terms().maxMonths()).isNull();
         assertThat(service(true, true, 12).terms().maxMonths()).isEqualTo(12);
     }
@@ -182,12 +185,12 @@ class PaymentServiceTest {
 
         CreatePaymentResponse response = service(true, true).create(request(3), TOKEN);
 
-        String signature = PayAnyWaySignature.request(ACCOUNT, id.toString(), "900.00", "RUB", null, "1", CODE);
+        String signature = PayAnyWaySignature.request(ACCOUNT, id.toString(), "873.00", "RUB", null, "1", CODE);
         assertThat(response.testMode()).isTrue();
         assertThat(response.paymentUrl())
                 .startsWith("https://www.payanyway.ru/assistant.htm?MNT_ID=" + ACCOUNT)
                 .contains("MNT_TRANSACTION_ID=" + id)
-                .contains("MNT_AMOUNT=900.00")
+                .contains("MNT_AMOUNT=873.00")
                 .contains("MNT_TEST_MODE=1")
                 .contains("MNT_SIGNATURE=" + signature)
                 .contains("paymentSystem.unitId=card")
