@@ -30,15 +30,24 @@ public class AuthServiceMailClient {
             @Value("${auth-service.read-timeout:3s}") Duration readTimeout,
             @Value("${internal.service-secret}") String serviceSecret
     ) {
+        this.restClient = restClientBuilder
+                .baseUrl(authServiceBaseUrl)
+                .requestFactory(requestFactory(connectTimeout, readTimeout))
+                .build();
+        this.serviceSecret = serviceSecret;
+    }
+
+    /**
+     * Фабрика с конечными таймаутами: медленный/недоступный auth-service не должен
+     * подвешивать оплату дольше заданных таймаутов
+     * ({@code auth-service.connect-timeout}/{@code auth-service.read-timeout}).
+     */
+    private static SimpleClientHttpRequestFactory requestFactory(Duration connectTimeout, Duration readTimeout) {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(connectTimeout);
         factory.setReadTimeout(readTimeout);
 
-        this.restClient = restClientBuilder
-                .baseUrl(authServiceBaseUrl)
-                .requestFactory(factory)
-                .build();
-        this.serviceSecret = serviceSecret;
+        return factory;
     }
 
     /**

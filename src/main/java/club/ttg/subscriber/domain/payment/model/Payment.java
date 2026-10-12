@@ -38,7 +38,7 @@ public class Payment {
     private String username;
 
     /** Почта пользователя на момент оплаты: на неё PayAnyWay отправляет чек. */
-    @Column
+    @Column(name = "email")
     private String email;
 
     @Column(nullable = false, precision = 12, scale = 2)

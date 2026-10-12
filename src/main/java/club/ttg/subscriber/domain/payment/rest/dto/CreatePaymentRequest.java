@@ -14,7 +14,9 @@ import jakarta.validation.constraints.Size;
  * @param email  почта для чека: по умолчанию почта аккаунта, пользователь может её поменять
  */
 public record CreatePaymentRequest(
-        @NotNull @Min(1) Integer months,
+        @NotNull(message = "Укажите срок подписки")
+        @Min(value = 1, message = "Срок подписки — не меньше месяца")
+        Integer months,
         @NotBlank(message = "Укажите почту для чека")
         @Email(message = "Некорректная почта для чека")
         @Size(max = 255, message = "Почта для чека слишком длинная")

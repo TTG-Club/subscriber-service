@@ -11,7 +11,7 @@ Resource-server на Spring Boot, владеющий **подписками** и
 ## Сборка и запуск
 
 ```sh
-./mvnw -DskipTests package
+mvn -DskipTests package
 java -jar target/subscriber.jar
 ```
 
@@ -59,7 +59,8 @@ Service-to-service (заголовок `X-Service-Token`, **без** JWT):
 | `DB_POOL_SIZE`                 | максимум соединений Hikari (по умолчанию 10)                               |
 | `DB_MIN_IDLE`                  | минимум idle-соединений Hikari (по умолчанию 2)                            |
 | `AUTH_SERVICE_JWT_SECRET`      | общий HMAC-секрет для валидации JWT (`auth-service.jwt-secret`)            |
-| `INTERNAL_SERVICE_SECRET`      | секрет заголовка `X-Service-Token` для `/api/internal/**` и вызовов core-api |
+| `INTERNAL_SERVICE_SECRET`      | секрет заголовка `X-Service-Token` для `/api/internal/**` и вызовов core-api и auth-service |
+| `AUTH_SERVICE_URL`             | базовый URL auth-service: роли, проверка аккаунта перед оплатой, письмо об оплате (по умолчанию `http://auth-service:8080`) |
 | `CORE_API_URL`                 | базовый URL core-api для начисления достижений (`core-api.base-url`)       |
 | `TELEGRAM_BOT_TOKEN`           | токен Telegram-бота для выпуска приглашений в чат разработки (пусто — выключено) |
 | `TELEGRAM_DEV_CHAT_ID`         | id секретного чата разработки (для супергруппы — вида `-100...`)           |
@@ -73,7 +74,7 @@ Service-to-service (заголовок `X-Service-Token`, **без** JWT):
 | `PAYANYWAY_ADMIN_ONLY`         | `true` — платить могут только администраторы (по умолчанию true)          |
 | `PAYANYWAY_PRICE`              | цена одного месяца подписки в рублях, обязательна (без неё оплата выключена) |
 | `PAYANYWAY_MAX_MONTHS`         | сколько месяцев можно оплатить за раз (по умолчанию 0 — без ограничения)   |
-| `PAYANYWAY_SITE_URL`           | адрес сайта для возврата с формы оплаты, например `https://ttg.club`       |
+| `PAYANYWAY_SITE_URL`           | адрес сайта для возврата с формы оплаты, например `https://ttg.club`; возврат идёт на `/subscription?payment=success\|pending\|fail\|cancel` |
 
 Секреты в репозитории не хранятся и `.env` не создаётся — значения задаются в Dokploy.
 
@@ -119,4 +120,4 @@ PayAnyWay присылает уведомление на Pay URL; сервис �
 - Check URL — пусто;
 - «Подпись формы оплаты обязательна» — включено;
 - «Можно переопределять настройки в URL» — включено (возврат на страницу подписки);
-- «Тестовый режим» — на время проверки.
+- «Тестовый режим» — самозанятым недоступен: проверка идёт боевыми платежами при `PAYANYWAY_ADMIN_ONLY=true`.
