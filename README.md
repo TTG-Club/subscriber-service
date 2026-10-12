@@ -31,7 +31,7 @@ Docker-образ собирается по `Dockerfile` (multi-stage), депл
 - `GET  /api/subscriptions/my`, `GET /api/subscriptions/my-codes`
 - `GET  /api/rewards/me`, `GET /api/rewards/supporters`
 - `GET  /api/subscriptions/payments/terms` — цена месяца, валюта и предел срока (их показывает окно покупки)
-- `POST /api/subscriptions/payments` — `{ "months": N }` создать платёж на N месяцев и получить ссылку на форму PayAnyWay
+- `POST /api/subscriptions/payments` — `{ "months": N, "email": "почта для чека", "method": "CARD" | "SBP" }` создать платёж на N месяцев и получить ссылку на форму PayAnyWay, сразу открывающую выбранный способ оплаты. Платить может только аккаунт с подтверждённой почтой и принятыми офертой и согласием на обработку ПД (проверка через `GET {AUTH_SERVICE_URL}/api/auth/me` с токеном пользователя)
   (пока `PAYANYWAY_ADMIN_ONLY=true`, только для `ADMIN`)
 
 Админские (`@Secured("ADMIN")`):
@@ -109,7 +109,7 @@ PayAnyWay присылает уведомление на Pay URL; сервис �
 уведомление по оплаченному платежу подтверждается без повторного продления; неверная подпись — ответ
 `FAIL`, и PayAnyWay повторит уведомление в течение суток. Тестовая оплата (`MNT_TEST_MODE=1`)
 принимается только при `PAYANYWAY_TEST_MODE=true`. В ответе на принятую оплату передаются данные чека:
-позиция (`INVENTORY`, «НДС не облагается») и почта пользователя из токена на момент оплаты (`CUSTOMER`),
+позиция (`INVENTORY`, «НДС не облагается») и почта для чека, указанная при оплате (`CUSTOMER`),
 на неё PayAnyWay отправляет чек.
 
 Настройки счёта в личном кабинете PayAnyWay:

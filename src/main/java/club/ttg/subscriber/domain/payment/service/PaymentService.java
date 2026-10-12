@@ -1,8 +1,12 @@
 package club.ttg.subscriber.domain.payment.service;
 
+import club.ttg.subscriber.client.AuthServiceAccountClient;
+import club.ttg.subscriber.client.AuthServiceAccountClient.AccountStatus;
 import club.ttg.subscriber.domain.payment.model.Payment;
+import club.ttg.subscriber.domain.payment.model.PaymentMethod;
 import club.ttg.subscriber.domain.payment.model.PaymentStatus;
 import club.ttg.subscriber.domain.payment.repository.PaymentRepository;
+import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentRequest;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentResponse;
 import club.ttg.subscriber.domain.payment.rest.dto.PaymentTermsResponse;
 import club.ttg.subscriber.domain.subscription.rest.dto.SubscriptionResponse;
@@ -45,6 +49,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final SubscriptionService subscriptionService;
     private final PayAnyWaySettings settings;
+    private final AuthServiceAccountClient authServiceAccountClient;
 
     /** Текущие условия оплаты: цена месяца, валюта и предел срока из настроек. */
     public PaymentTermsResponse terms() {
@@ -60,10 +65,16 @@ public class PaymentService {
     /**
      * Создаёт платёж текущего пользователя за выбранное число месяцев (цена месяца,
      * умноженная на срок) и возвращает ссылку на платёжную форму. Автопродления нет.
+     * Платить может только аккаунт с подтверждённой почтой и принятыми офертой и
+     * согласием на обработку персональных данных (проверяется в auth-service).
      * Пока включён {@code payanyway.admin-only}, платить могут только администраторы.
+     *
+     * @param request       срок, почта для чека и способ оплаты
+     * @param authorization заголовок авторизации пользователя — для запроса в auth-service
      */
     @Transactional
-    public CreatePaymentResponse create(int months) {
+    public CreatePaymentResponse create(CreatePaymentRequest request, String authorization) {
+        int months = request.months();
         AuthUser user = SecurityUtils.getUser();
         if (settings.isAdminOnly() && !user.getRoles().contains(ADMIN_ROLE)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Оплата пока доступна только администраторам");
@@ -78,10 +89,11 @@ public class PaymentService {
             throw new ApiException(HttpStatus.BAD_REQUEST,
                     "Оплатить можно не больше " + settings.getMaxMonths() + " мес. за раз");
         }
+        requireAccountReady(authorization);
 
         Payment payment = new Payment();
         payment.setUsername(user.getUsername());
-        payment.setEmail(StringUtils.hasText(user.getEmail()) ? user.getEmail().trim() : null);
+        payment.setEmail(request.email().trim());
         payment.setAmount(settings.getPrice().multiply(BigDecimal.valueOf(months)).setScale(2, RoundingMode.HALF_UP));
         payment.setCurrency(CURRENCY);
         payment.setMonths(months);
@@ -89,7 +101,30 @@ public class PaymentService {
         payment.setTestMode(settings.isTestMode());
         payment = paymentRepository.save(payment);
 
-        return new CreatePaymentResponse(payment.getUuid(), paymentUrl(payment), payment.isTestMode());
+        return new CreatePaymentResponse(payment.getUuid(), paymentUrl(payment, request.method()), payment.isTestMode());
+    }
+
+    /**
+     * Пускает к оплате только аккаунт с подтверждённой почтой и принятыми согласиями.
+     * Если auth-service не ответил, оплата не создаётся: проверить аккаунт нечем.
+     */
+    private void requireAccountReady(String authorization) {
+        AccountStatus account;
+        try {
+            account = authServiceAccountClient.currentAccount(authorization);
+        } catch (RuntimeException exception) {
+            log.error("PayAnyWay: не удалось проверить аккаунт в auth-service: {}", exception.getMessage());
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "Не удалось проверить аккаунт, попробуйте чуть позже");
+        }
+
+        if (!account.emailVerified()) {
+            throw new ApiException(HttpStatus.FORBIDDEN, "Подтвердите почту, чтобы оплатить подписку");
+        }
+        if (!account.consentsAccepted()) {
+            throw new ApiException(HttpStatus.FORBIDDEN,
+                    "Примите условия оферты и дайте согласие на обработку персональных данных");
+        }
     }
 
     /**
@@ -180,7 +215,7 @@ public class PaymentService {
         return null;
     }
 
-    private String paymentUrl(Payment payment) {
+    private String paymentUrl(Payment payment, PaymentMethod method) {
         String accountId = settings.getAccountId();
         String transactionId = payment.getUuid().toString();
         String amount = payment.getAmount().toPlainString();
@@ -195,6 +230,7 @@ public class PaymentService {
                 .queryParam("MNT_DESCRIPTION", description(payment))
                 .queryParam("MNT_SIGNATURE", PayAnyWaySignature.request(accountId, transactionId, amount,
                         payment.getCurrency(), null, testMode, settings.getIntegrityCode()))
+                .queryParam("paymentSystem.unitId", method.getUnitId())
                 .queryParam("moneta.locale", "ru");
 
         if (StringUtils.hasText(settings.getSiteUrl())) {

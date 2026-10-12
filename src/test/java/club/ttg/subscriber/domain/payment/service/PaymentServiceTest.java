@@ -1,8 +1,12 @@
 package club.ttg.subscriber.domain.payment.service;
 
+import club.ttg.subscriber.client.AuthServiceAccountClient;
+import club.ttg.subscriber.client.AuthServiceAccountClient.AccountStatus;
 import club.ttg.subscriber.domain.payment.model.Payment;
+import club.ttg.subscriber.domain.payment.model.PaymentMethod;
 import club.ttg.subscriber.domain.payment.model.PaymentStatus;
 import club.ttg.subscriber.domain.payment.repository.PaymentRepository;
+import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentRequest;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentResponse;
 import club.ttg.subscriber.domain.subscription.model.SubscriptionType;
 import club.ttg.subscriber.domain.subscription.rest.dto.SubscriptionResponse;
@@ -36,9 +40,11 @@ import static org.mockito.Mockito.when;
 class PaymentServiceTest {
     private static final String ACCOUNT = "12345678";
     private static final String CODE = "secret";
+    private static final String TOKEN = "Bearer token";
 
     private final PaymentRepository paymentRepository = mock(PaymentRepository.class);
     private final SubscriptionService subscriptionService = mock(SubscriptionService.class);
+    private final AuthServiceAccountClient accountClient = mock(AuthServiceAccountClient.class);
 
     @AfterEach
     void clearContext() {
@@ -53,7 +59,15 @@ class PaymentServiceTest {
         PayAnyWaySettings settings = new PayAnyWaySettings(ACCOUNT, CODE,
                 "https://www.payanyway.ru/assistant.htm", testMode, adminOnly, new BigDecimal("300"), maxMonths,
                 "https://dev.ttg.club/");
-        return new PaymentService(paymentRepository, subscriptionService, settings);
+        return new PaymentService(paymentRepository, subscriptionService, settings, accountClient);
+    }
+
+    private static CreatePaymentRequest request(int months) {
+        return new CreatePaymentRequest(months, "receipt@example.com", PaymentMethod.CARD);
+    }
+
+    private void account(boolean emailVerified, boolean consentsAccepted) {
+        when(accountClient.currentAccount(TOKEN)).thenReturn(new AccountStatus(emailVerified, consentsAccepted));
     }
 
     private static void login(String... roles) {
@@ -105,10 +119,41 @@ class PaymentServiceTest {
         login("ADMIN");
         PaymentService noPrice = new PaymentService(paymentRepository, subscriptionService,
                 new PayAnyWaySettings(ACCOUNT, CODE, "https://www.payanyway.ru/assistant.htm",
-                        true, true, null, 0, "https://dev.ttg.club/"));
+                        true, true, null, 0, "https://dev.ttg.club/"), accountClient);
 
         assertThatThrownBy(noPrice::terms).isInstanceOf(ApiException.class);
-        assertThatThrownBy(() -> noPrice.create(1)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> noPrice.create(request(1), TOKEN)).isInstanceOf(ApiException.class);
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void createRequiresVerifiedEmail() {
+        login("USER", "ADMIN");
+        account(false, true);
+
+        assertThatThrownBy(() -> service(true, true).create(request(1), TOKEN))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("Подтвердите почту");
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void createRequiresConsents() {
+        login("USER", "ADMIN");
+        account(true, false);
+
+        assertThatThrownBy(() -> service(true, true).create(request(1), TOKEN))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("оферты");
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void createFailsClosedWhenAuthServiceIsDown() {
+        login("USER", "ADMIN");
+        when(accountClient.currentAccount(TOKEN)).thenThrow(new IllegalStateException("down"));
+
+        assertThatThrownBy(() -> service(true, true).create(request(1), TOKEN)).isInstanceOf(ApiException.class);
         verify(paymentRepository, never()).save(any());
     }
 
@@ -116,7 +161,7 @@ class PaymentServiceTest {
     void createRejectsNonAdminWhileAdminOnly() {
         login("USER");
 
-        assertThatThrownBy(() -> service(true, true).create(1)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service(true, true).create(request(1), TOKEN)).isInstanceOf(ApiException.class);
         verify(paymentRepository, never()).save(any());
     }
 
@@ -130,7 +175,9 @@ class PaymentServiceTest {
             return saved;
         });
 
-        CreatePaymentResponse response = service(true, true).create(3);
+        account(true, true);
+
+        CreatePaymentResponse response = service(true, true).create(request(3), TOKEN);
 
         String signature = PayAnyWaySignature.request(ACCOUNT, id.toString(), "900.00", "RUB", null, "1", CODE);
         assertThat(response.testMode()).isTrue();
@@ -140,17 +187,18 @@ class PaymentServiceTest {
                 .contains("MNT_AMOUNT=900.00")
                 .contains("MNT_TEST_MODE=1")
                 .contains("MNT_SIGNATURE=" + signature)
+                .contains("paymentSystem.unitId=card")
                 .contains("MNT_SUCCESS_URL=https://dev.ttg.club/vttg/subscription?payment%3Dsuccess")
                 .doesNotContain(CODE + "&");
-        verify(paymentRepository).save(argThat(saved -> "hero@example.com".equals(saved.getEmail())));
+        verify(paymentRepository).save(argThat(saved -> "receipt@example.com".equals(saved.getEmail())));
     }
 
     @Test
     void createRejectsTooManyMonths() {
         login("USER", "ADMIN");
 
-        assertThatThrownBy(() -> service(true, true, 12).create(13)).isInstanceOf(ApiException.class);
-        assertThatThrownBy(() -> service(true, true).create(0)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service(true, true, 12).create(request(13), TOKEN)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service(true, true).create(request(0), TOKEN)).isInstanceOf(ApiException.class);
         verify(paymentRepository, never()).save(any());
     }
 
