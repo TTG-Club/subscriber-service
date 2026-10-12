@@ -24,10 +24,10 @@ public class PayAnyWaySettings {
     private final boolean testMode;
     /** Оплата доступна только администраторам (на время проверки). */
     private final boolean adminOnly;
-    /** Цена подписки за {@link #months} месяцев, в рублях. */
+    /** Цена одного месяца подписки, в рублях. */
     private final BigDecimal price;
-    /** Срок, на который продлевается подписка после оплаты. */
-    private final int months;
+    /** Сколько месяцев можно оплатить за раз. */
+    private final int maxMonths;
     /** Адрес сайта, куда платёжная форма вернёт пользователя (без завершающего слэша). */
     private final String siteUrl;
 
@@ -38,7 +38,7 @@ public class PayAnyWaySettings {
             @Value("${payanyway.test-mode:true}") boolean testMode,
             @Value("${payanyway.admin-only:true}") boolean adminOnly,
             @Value("${payanyway.price:300.00}") BigDecimal price,
-            @Value("${payanyway.months:1}") int months,
+            @Value("${payanyway.max-months:12}") int maxMonths,
             @Value("${payanyway.site-url:}") String siteUrl
     ) {
         this.accountId = accountId == null ? "" : accountId.trim();
@@ -47,7 +47,7 @@ public class PayAnyWaySettings {
         this.testMode = testMode;
         this.adminOnly = adminOnly;
         this.price = price;
-        this.months = months;
+        this.maxMonths = maxMonths;
         this.siteUrl = StringUtils.trimTrailingCharacter(siteUrl == null ? "" : siteUrl.trim(), '/');
     }
 

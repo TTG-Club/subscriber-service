@@ -1,15 +1,18 @@
 package club.ttg.subscriber.domain.payment.rest.controller;
 
+import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentRequest;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentResponse;
 import club.ttg.subscriber.domain.payment.service.PaymentNotificationResult;
 import club.ttg.subscriber.domain.payment.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.annotation.Secured;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,10 +36,10 @@ public class PaymentController {
     private final PaymentService paymentService;
 
     @Secured("USER")
-    @Operation(summary = "Создать платёж за подписку и получить ссылку на форму оплаты")
+    @Operation(summary = "Создать платёж за подписку на N месяцев и получить ссылку на форму оплаты")
     @PostMapping
-    public CreatePaymentResponse create() {
-        return paymentService.create();
+    public CreatePaymentResponse create(@Valid @RequestBody CreatePaymentRequest request) {
+        return paymentService.create(request.months());
     }
 
     @Operation(summary = "Уведомление PayAnyWay об оплате (Pay URL)")

@@ -67,7 +67,7 @@ payanyway:
   test-mode: ${PAYANYWAY_TEST_MODE:true}
   admin-only: ${PAYANYWAY_ADMIN_ONLY:true}
   price: ${PAYANYWAY_PRICE:300.00}
-  months: ${PAYANYWAY_MONTHS:1}
+  max-months: ${PAYANYWAY_MAX_MONTHS:12}
   site-url: ${PAYANYWAY_SITE_URL:}
 
 springdoc:

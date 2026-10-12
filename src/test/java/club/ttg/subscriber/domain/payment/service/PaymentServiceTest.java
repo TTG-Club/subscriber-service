@@ -46,7 +46,7 @@ class PaymentServiceTest {
 
     private PaymentService service(boolean testMode, boolean adminOnly) {
         PayAnyWaySettings settings = new PayAnyWaySettings(ACCOUNT, CODE,
-                "https://www.payanyway.ru/assistant.htm", testMode, adminOnly, new BigDecimal("300"), 1,
+                "https://www.payanyway.ru/assistant.htm", testMode, adminOnly, new BigDecimal("300"), 12,
                 "https://dev.ttg.club/");
         return new PaymentService(paymentRepository, subscriptionService, settings);
     }
@@ -92,7 +92,7 @@ class PaymentServiceTest {
     void createRejectsNonAdminWhileAdminOnly() {
         login("USER");
 
-        assertThatThrownBy(() -> service(true, true).create()).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service(true, true).create(1)).isInstanceOf(ApiException.class);
         verify(paymentRepository, never()).save(any());
     }
 
@@ -106,18 +106,26 @@ class PaymentServiceTest {
             return saved;
         });
 
-        CreatePaymentResponse response = service(true, true).create();
+        CreatePaymentResponse response = service(true, true).create(3);
 
-        String signature = PayAnyWaySignature.request(ACCOUNT, id.toString(), "300.00", "RUB", null, "1", CODE);
+        String signature = PayAnyWaySignature.request(ACCOUNT, id.toString(), "900.00", "RUB", null, "1", CODE);
         assertThat(response.testMode()).isTrue();
         assertThat(response.paymentUrl())
                 .startsWith("https://www.payanyway.ru/assistant.htm?MNT_ID=" + ACCOUNT)
                 .contains("MNT_TRANSACTION_ID=" + id)
-                .contains("MNT_AMOUNT=300.00")
+                .contains("MNT_AMOUNT=900.00")
                 .contains("MNT_TEST_MODE=1")
                 .contains("MNT_SIGNATURE=" + signature)
                 .contains("MNT_SUCCESS_URL=https://dev.ttg.club/vttg/subscription?payment%3Dsuccess")
                 .doesNotContain(CODE + "&");
+    }
+
+    @Test
+    void createRejectsTooManyMonths() {
+        login("USER", "ADMIN");
+
+        assertThatThrownBy(() -> service(true, true).create(13)).isInstanceOf(ApiException.class);
+        verify(paymentRepository, never()).save(any());
     }
 
     @Test

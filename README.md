@@ -30,7 +30,7 @@ Docker-образ собирается по `Dockerfile` (multi-stage), депл
 - `GET  /api/subscriptions/status` — реал-тайм статус текущего пользователя
 - `GET  /api/subscriptions/my`, `GET /api/subscriptions/my-codes`
 - `GET  /api/rewards/me`, `GET /api/rewards/supporters`
-- `POST /api/subscriptions/payments` — создать платёж и получить ссылку на форму PayAnyWay
+- `POST /api/subscriptions/payments` — `{ "months": N }` создать платёж на N месяцев и получить ссылку на форму PayAnyWay
   (пока `PAYANYWAY_ADMIN_ONLY=true`, только для `ADMIN`)
 
 Админские (`@Secured("ADMIN")`):
@@ -70,8 +70,8 @@ Service-to-service (заголовок `X-Service-Token`, **без** JWT):
 | `PAYANYWAY_FORM_URL`           | платёжная форма (по умолчанию `https://www.payanyway.ru/assistant.htm`, демо — `https://demo.moneta.ru/assistant.htm`) |
 | `PAYANYWAY_TEST_MODE`          | `true` — `MNT_TEST_MODE=1`, деньги не списываются (по умолчанию true)     |
 | `PAYANYWAY_ADMIN_ONLY`         | `true` — платить могут только администраторы (по умолчанию true)          |
-| `PAYANYWAY_PRICE`              | цена подписки в рублях (по умолчанию 300.00)                               |
-| `PAYANYWAY_MONTHS`             | на сколько месяцев продлевается подписка (по умолчанию 1)                  |
+| `PAYANYWAY_PRICE`              | цена одного месяца подписки в рублях (по умолчанию 300.00)                 |
+| `PAYANYWAY_MAX_MONTHS`         | сколько месяцев можно оплатить за раз (по умолчанию 12)                    |
 | `PAYANYWAY_SITE_URL`           | адрес сайта для возврата с формы оплаты, например `https://ttg.club`       |
 
 Секреты в репозитории не хранятся и `.env` не создаётся — значения задаются в Dokploy.
@@ -100,7 +100,8 @@ core-api появится позже.
 
 ## Оплата через PayAnyWay
 
-Пользователь вызывает `POST /api/subscriptions/payments`: сервис создаёт платёж (таблица `payment`)
+Пользователь выбирает число месяцев и вызывает `POST /api/subscriptions/payments`; автопродления нет.
+Сервис создаёт платёж на цену месяца × срок (таблица `payment`)
 и возвращает подписанную (`MNT_SIGNATURE`) ссылку на платёжную форму MONETA.Assistant. После оплаты
 PayAnyWay присылает уведомление на Pay URL; сервис проверяет подпись, номер счёта, сумму и валюту,
 продлевает подписку записью типа `BUY` и отвечает XML `MNT_RESPONSE` с кодом 200. Повторное

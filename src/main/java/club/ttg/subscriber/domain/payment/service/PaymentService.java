@@ -46,11 +46,12 @@ public class PaymentService {
     private final PayAnyWaySettings settings;
 
     /**
-     * Создаёт платёж текущего пользователя и возвращает ссылку на платёжную форму.
+     * Создаёт платёж текущего пользователя за выбранное число месяцев (цена месяца,
+     * умноженная на срок) и возвращает ссылку на платёжную форму. Автопродления нет.
      * Пока включён {@code payanyway.admin-only}, платить могут только администраторы.
      */
     @Transactional
-    public CreatePaymentResponse create() {
+    public CreatePaymentResponse create(int months) {
         AuthUser user = SecurityUtils.getUser();
         if (settings.isAdminOnly() && !user.getRoles().contains(ADMIN_ROLE)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Оплата пока доступна только администраторам");
@@ -58,12 +59,16 @@ public class PaymentService {
         if (!settings.isConfigured()) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "Оплата временно недоступна");
         }
+        if (months < 1 || months > settings.getMaxMonths()) {
+            throw new ApiException(HttpStatus.BAD_REQUEST,
+                    "Оплатить можно от 1 до " + settings.getMaxMonths() + " мес.");
+        }
 
         Payment payment = new Payment();
         payment.setUsername(user.getUsername());
-        payment.setAmount(settings.getPrice().setScale(2, RoundingMode.HALF_UP));
+        payment.setAmount(settings.getPrice().multiply(BigDecimal.valueOf(months)).setScale(2, RoundingMode.HALF_UP));
         payment.setCurrency(CURRENCY);
-        payment.setMonths(settings.getMonths());
+        payment.setMonths(months);
         payment.setStatus(PaymentStatus.CREATED);
         payment.setTestMode(settings.isTestMode());
         payment = paymentRepository.save(payment);
