@@ -3,7 +3,6 @@ package club.ttg.subscriber.domain.payment.service;
 import club.ttg.subscriber.client.AuthServiceAccountClient;
 import club.ttg.subscriber.client.AuthServiceAccountClient.AccountStatus;
 import club.ttg.subscriber.domain.payment.model.Payment;
-import club.ttg.subscriber.domain.payment.model.PaymentMethod;
 import club.ttg.subscriber.domain.payment.model.PaymentStatus;
 import club.ttg.subscriber.domain.payment.repository.PaymentRepository;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentRequest;
@@ -45,6 +44,8 @@ public class PaymentService {
     private static final String TEST_MODE_ON = "1";
     private static final String TEST_MODE_OFF = "0";
     private static final String SUBSCRIPTION_PAGE_PATH = "/vttg/subscription";
+    /** Форма сразу открывает экран оплаты картой; СБП доступна там же отдельной кнопкой. */
+    private static final String CARD_PAYMENT_UNIT = "card";
 
     private final PaymentRepository paymentRepository;
     private final SubscriptionService subscriptionService;
@@ -69,7 +70,7 @@ public class PaymentService {
      * согласием на обработку персональных данных (проверяется в auth-service).
      * Пока включён {@code payanyway.admin-only}, платить могут только администраторы.
      *
-     * @param request       срок, почта для чека и способ оплаты
+     * @param request       срок и почта для чека
      * @param authorization заголовок авторизации пользователя — для запроса в auth-service
      */
     @Transactional
@@ -101,7 +102,7 @@ public class PaymentService {
         payment.setTestMode(settings.isTestMode());
         payment = paymentRepository.save(payment);
 
-        return new CreatePaymentResponse(payment.getUuid(), paymentUrl(payment, request.method()), payment.isTestMode());
+        return new CreatePaymentResponse(payment.getUuid(), paymentUrl(payment), payment.isTestMode());
     }
 
     /**
@@ -215,7 +216,7 @@ public class PaymentService {
         return null;
     }
 
-    private String paymentUrl(Payment payment, PaymentMethod method) {
+    private String paymentUrl(Payment payment) {
         String accountId = settings.getAccountId();
         String transactionId = payment.getUuid().toString();
         String amount = payment.getAmount().toPlainString();
@@ -230,7 +231,7 @@ public class PaymentService {
                 .queryParam("MNT_DESCRIPTION", description(payment))
                 .queryParam("MNT_SIGNATURE", PayAnyWaySignature.request(accountId, transactionId, amount,
                         payment.getCurrency(), null, testMode, settings.getIntegrityCode()))
-                .queryParam("paymentSystem.unitId", method.getUnitId())
+                .queryParam("paymentSystem.unitId", CARD_PAYMENT_UNIT)
                 .queryParam("moneta.locale", "ru");
 
         if (StringUtils.hasText(settings.getSiteUrl())) {

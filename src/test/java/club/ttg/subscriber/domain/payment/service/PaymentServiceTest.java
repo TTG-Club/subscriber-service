@@ -3,7 +3,6 @@ package club.ttg.subscriber.domain.payment.service;
 import club.ttg.subscriber.client.AuthServiceAccountClient;
 import club.ttg.subscriber.client.AuthServiceAccountClient.AccountStatus;
 import club.ttg.subscriber.domain.payment.model.Payment;
-import club.ttg.subscriber.domain.payment.model.PaymentMethod;
 import club.ttg.subscriber.domain.payment.model.PaymentStatus;
 import club.ttg.subscriber.domain.payment.repository.PaymentRepository;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentRequest;
@@ -63,7 +62,7 @@ class PaymentServiceTest {
     }
 
     private static CreatePaymentRequest request(int months) {
-        return new CreatePaymentRequest(months, "receipt@example.com", PaymentMethod.CARD);
+        return new CreatePaymentRequest(months, "receipt@example.com");
     }
 
     private void account(boolean emailVerified, boolean consentsAccepted) {
