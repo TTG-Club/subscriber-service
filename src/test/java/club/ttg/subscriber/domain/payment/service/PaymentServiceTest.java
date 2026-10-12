@@ -190,7 +190,7 @@ class PaymentServiceTest {
                 .contains("MNT_TEST_MODE=1")
                 .contains("MNT_SIGNATURE=" + signature)
                 .contains("paymentSystem.unitId=card")
-                .contains("MNT_SUCCESS_URL=https://dev.ttg.club/vttg/subscription?payment%3Dsuccess")
+                .contains("MNT_SUCCESS_URL=https://dev.ttg.club/subscription?payment%3Dsuccess")
                 .doesNotContain(CODE + "&");
         verify(paymentRepository).save(argThat(saved -> "receipt@example.com".equals(saved.getEmail())));
     }
@@ -226,7 +226,7 @@ class PaymentServiceTest {
         assertThat(repeated.receipt()).isEqualTo(first.receipt());
         verify(eventPublisher).publishEvent(argThat((Object event) -> event instanceof SubscriptionPaidMail mail
                 && "hero@example.com".equals(mail.email()) && mail.months() == 1
-                && "https://dev.ttg.club/vttg/subscription".equals(mail.subscriptionUrl())));
+                && "https://dev.ttg.club/subscription".equals(mail.subscriptionUrl())));
     }
 
     @Test

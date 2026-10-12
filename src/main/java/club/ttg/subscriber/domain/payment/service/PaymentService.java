@@ -45,7 +45,7 @@ public class PaymentService {
     private static final String ADMIN_ROLE = "ADMIN";
     private static final String TEST_MODE_ON = "1";
     private static final String TEST_MODE_OFF = "0";
-    private static final String SUBSCRIPTION_PAGE_PATH = "/vttg/subscription";
+    private static final String SUBSCRIPTION_PAGE_PATH = "/subscription";
     /** Форма сразу открывает экран оплаты картой; СБП доступна там же отдельной кнопкой. */
     private static final String CARD_PAYMENT_UNIT = "card";
 
