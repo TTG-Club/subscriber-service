@@ -10,7 +10,7 @@ class SubscriptionDiscountTest {
     private static final BigDecimal PRICE = new BigDecimal("300");
 
     @Test
-    void percentGrowsByTiersAndStopsAtNine() {
+    void percentGrowsByTiersUpToNine() {
         assertThat(SubscriptionDiscount.percentFor(1)).isZero();
         assertThat(SubscriptionDiscount.percentFor(2)).isZero();
         assertThat(SubscriptionDiscount.percentFor(3)).isEqualTo(3);
@@ -19,12 +19,14 @@ class SubscriptionDiscountTest {
         assertThat(SubscriptionDiscount.percentFor(11)).isEqualTo(6);
         assertThat(SubscriptionDiscount.percentFor(12)).isEqualTo(9);
         assertThat(SubscriptionDiscount.percentFor(24)).isEqualTo(9);
-        assertThat(SubscriptionDiscount.percentFor(37)).isEqualTo(9);
+        assertThat(SubscriptionDiscount.percentFor(35)).isEqualTo(9);
     }
 
     @Test
-    void exactlyThirtySixMonthsIsEasterEgg() {
+    void fromThirtySixMonthsIsEasterEgg() {
         assertThat(SubscriptionDiscount.percentFor(36)).isEqualTo(15);
+        assertThat(SubscriptionDiscount.percentFor(37)).isEqualTo(15);
+        assertThat(SubscriptionDiscount.percentFor(48)).isEqualTo(15);
         assertThat(SubscriptionDiscount.amountFor(PRICE, 36)).isEqualByComparingTo("9180.00");
     }
 

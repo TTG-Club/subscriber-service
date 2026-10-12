@@ -68,8 +68,8 @@ public class PaymentService {
                 SubscriptionDiscount.TIERS.stream()
                         .map(tier -> new PaymentTermsResponse.Discount(tier.fromMonths(), tier.percent()))
                         .toList(),
-                List.of(new PaymentTermsResponse.ExactDiscount(
-                        SubscriptionDiscount.EASTER_EGG.months(), SubscriptionDiscount.EASTER_EGG.percent())));
+                List.of(new PaymentTermsResponse.Discount(
+                        SubscriptionDiscount.EASTER_EGG.fromMonths(), SubscriptionDiscount.EASTER_EGG.percent())));
     }
 
     /**
