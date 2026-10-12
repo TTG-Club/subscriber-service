@@ -68,9 +68,9 @@ Service-to-service (заголовок `X-Service-Token`, **без** JWT):
 | `PAYANYWAY_ACCOUNT_ID`         | номер расширенного счёта PayAnyWay (`MNT_ID`); пусто — оплата выключена   |
 | `PAYANYWAY_INTEGRITY_CODE`     | код проверки целостности данных из настроек счёта (секрет)                 |
 | `PAYANYWAY_FORM_URL`           | платёжная форма (по умолчанию `https://www.payanyway.ru/assistant.htm`, демо — `https://demo.moneta.ru/assistant.htm`) |
-| `PAYANYWAY_TEST_MODE`          | `true` — `MNT_TEST_MODE=1`, деньги не списываются (по умолчанию true)     |
+| `PAYANYWAY_TEST_MODE`          | `true` — `MNT_TEST_MODE=1`, деньги не списываются (по умолчанию false: самозанятым тестовый режим недоступен) |
 | `PAYANYWAY_ADMIN_ONLY`         | `true` — платить могут только администраторы (по умолчанию true)          |
-| `PAYANYWAY_PRICE`              | цена одного месяца подписки в рублях (по умолчанию 300.00)                 |
+| `PAYANYWAY_PRICE`              | цена одного месяца подписки в рублях (по умолчанию временно 11.00 — минимальная сумма тестовой операции PayAnyWay; перед запуском вернуть 300.00) |
 | `PAYANYWAY_MAX_MONTHS`         | сколько месяцев можно оплатить за раз (по умолчанию 0 — без ограничения)   |
 | `PAYANYWAY_SITE_URL`           | адрес сайта для возврата с формы оплаты, например `https://ttg.club`       |
 

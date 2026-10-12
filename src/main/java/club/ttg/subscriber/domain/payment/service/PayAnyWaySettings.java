@@ -35,9 +35,9 @@ public class PayAnyWaySettings {
             @Value("${payanyway.account-id:}") String accountId,
             @Value("${payanyway.integrity-code:}") String integrityCode,
             @Value("${payanyway.form-url}") String formUrl,
-            @Value("${payanyway.test-mode:true}") boolean testMode,
+            @Value("${payanyway.test-mode:false}") boolean testMode,
             @Value("${payanyway.admin-only:true}") boolean adminOnly,
-            @Value("${payanyway.price:300.00}") BigDecimal price,
+            @Value("${payanyway.price:11.00}") BigDecimal price,
             @Value("${payanyway.max-months:0}") int maxMonths,
             @Value("${payanyway.site-url:}") String siteUrl
     ) {
