@@ -24,7 +24,7 @@ public class PayAnyWaySettings {
     private final boolean testMode;
     /** Оплата доступна только администраторам (на время проверки). */
     private final boolean adminOnly;
-    /** Цена одного месяца подписки, в рублях. */
+    /** Цена одного месяца подписки, в рублях. Значения по умолчанию нет: без неё оплата выключена. */
     private final BigDecimal price;
     /** Сколько месяцев можно оплатить за раз; 0 — без ограничения. */
     private final int maxMonths;
@@ -37,7 +37,7 @@ public class PayAnyWaySettings {
             @Value("${payanyway.form-url}") String formUrl,
             @Value("${payanyway.test-mode:false}") boolean testMode,
             @Value("${payanyway.admin-only:true}") boolean adminOnly,
-            @Value("${payanyway.price:11.00}") BigDecimal price,
+            @Value("${payanyway.price:#{null}}") BigDecimal price,
             @Value("${payanyway.max-months:0}") int maxMonths,
             @Value("${payanyway.site-url:}") String siteUrl
     ) {
@@ -56,8 +56,9 @@ public class PayAnyWaySettings {
         return maxMonths > 0;
     }
 
-    /** Заданы ли номер счёта и код проверки целостности. */
+    /** Заданы ли номер счёта, код проверки целостности и положительная цена месяца. */
     public boolean isConfigured() {
-        return StringUtils.hasText(accountId) && StringUtils.hasText(integrityCode);
+        return StringUtils.hasText(accountId) && StringUtils.hasText(integrityCode)
+                && price != null && price.signum() > 0;
     }
 }

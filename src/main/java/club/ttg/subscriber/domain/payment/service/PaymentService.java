@@ -48,6 +48,9 @@ public class PaymentService {
 
     /** Текущие условия оплаты: цена месяца, валюта и предел срока из настроек. */
     public PaymentTermsResponse terms() {
+        if (!settings.isConfigured()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "Оплата временно недоступна");
+        }
         return new PaymentTermsResponse(
                 settings.getPrice().setScale(2, RoundingMode.HALF_UP),
                 CURRENCY,
@@ -97,7 +100,7 @@ public class PaymentService {
     @Transactional
     public PaymentNotificationResult handleNotification(Map<String, String> params) {
         if (!settings.isConfigured()) {
-            log.error("PayAnyWay: уведомление пришло, но номер счёта или код проверки целостности не заданы");
+            log.error("PayAnyWay: уведомление пришло, но номер счёта, код проверки целостности или цена месяца не заданы");
             return PaymentNotificationResult.fail();
         }
 

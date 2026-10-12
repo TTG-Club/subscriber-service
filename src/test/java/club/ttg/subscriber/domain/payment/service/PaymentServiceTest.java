@@ -100,6 +100,18 @@ class PaymentServiceTest {
     }
 
     @Test
+    void paymentsDisabledWithoutPrice() {
+        login("ADMIN");
+        PaymentService noPrice = new PaymentService(paymentRepository, subscriptionService,
+                new PayAnyWaySettings(ACCOUNT, CODE, "https://www.payanyway.ru/assistant.htm",
+                        true, true, null, 0, "https://dev.ttg.club/"));
+
+        assertThatThrownBy(noPrice::terms).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> noPrice.create(1)).isInstanceOf(ApiException.class);
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
     void createRejectsNonAdminWhileAdminOnly() {
         login("USER");
 
