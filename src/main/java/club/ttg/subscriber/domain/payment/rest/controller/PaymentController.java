@@ -4,6 +4,7 @@ import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentRequest;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentResponse;
 import club.ttg.subscriber.domain.payment.rest.dto.PaymentTermsResponse;
 import club.ttg.subscriber.domain.payment.service.PaymentNotificationResult;
+import club.ttg.subscriber.domain.payment.service.PaymentReceipt;
 import club.ttg.subscriber.domain.payment.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,6 +35,8 @@ import java.util.Map;
 @RequestMapping("/api/subscriptions/payments")
 public class PaymentController {
     public static final String NOTIFICATION_PATH = "/api/subscriptions/payments/payanyway";
+    /** Ставка НДС в чеке: «НДС не облагается» (самозанятый). */
+    private static final int VAT_NOT_APPLICABLE = 1105;
 
     private final PaymentService paymentService;
 
@@ -67,11 +70,45 @@ public class PaymentController {
                 + "<MNT_TRANSACTION_ID>" + xml(result.transactionId()) + "</MNT_TRANSACTION_ID>"
                 + "<MNT_RESULT_CODE>" + result.resultCode() + "</MNT_RESULT_CODE>"
                 + "<MNT_SIGNATURE>" + paymentService.responseSignature(result) + "</MNT_SIGNATURE>"
+                + receiptAttributes(result.receipt())
                 + "</MNT_RESPONSE>";
 
         return ResponseEntity.ok()
                 .contentType(new MediaType(MediaType.APPLICATION_XML, StandardCharsets.UTF_8))
                 .body(body);
+    }
+
+    /**
+     * Данные для чека в ответе на уведомление: позиция ({@code INVENTORY}) и почта
+     * покупателя ({@code CUSTOMER}), на которую PayAnyWay отправит чек. В подпись
+     * ответа атрибуты не входят.
+     */
+    private static String receiptAttributes(PaymentReceipt receipt) {
+        if (receipt == null) {
+            return "";
+        }
+
+        String inventory = "[{\"name\":\"" + json(receipt.item()) + "\","
+                + "\"price\":" + receipt.amount().toPlainString() + ","
+                + "\"quantity\":1,"
+                + "\"vatTag\":" + VAT_NOT_APPLICABLE + ","
+                + "\"pm\":\"full_payment\","
+                + "\"po\":\"service\"}]";
+
+        StringBuilder attributes = new StringBuilder("<MNT_ATTRIBUTES>")
+                .append(attribute("INVENTORY", inventory));
+        if (receipt.email() != null) {
+            attributes.append(attribute("CUSTOMER", receipt.email()));
+        }
+        return attributes.append("</MNT_ATTRIBUTES>").toString();
+    }
+
+    private static String attribute(String key, String value) {
+        return "<ATTRIBUTE><KEY>" + key + "</KEY><VALUE>" + xml(value) + "</VALUE></ATTRIBUTE>";
+    }
+
+    private static String json(String value) {
+        return value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     private static String xml(String value) {

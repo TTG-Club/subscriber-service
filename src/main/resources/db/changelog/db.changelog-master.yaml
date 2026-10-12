@@ -17,3 +17,5 @@ databaseChangeLog:
       file: db/changelog/changes/008-add-redemption-code-telegram-invite.yaml
   - include:
       file: db/changelog/changes/009-create-payment.yaml
+  - include:
+      file: db/changelog/changes/010-add-payment-email.yaml

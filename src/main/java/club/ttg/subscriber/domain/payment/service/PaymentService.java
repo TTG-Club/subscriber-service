@@ -81,6 +81,7 @@ public class PaymentService {
 
         Payment payment = new Payment();
         payment.setUsername(user.getUsername());
+        payment.setEmail(StringUtils.hasText(user.getEmail()) ? user.getEmail().trim() : null);
         payment.setAmount(settings.getPrice().multiply(BigDecimal.valueOf(months)).setScale(2, RoundingMode.HALF_UP));
         payment.setCurrency(CURRENCY);
         payment.setMonths(months);
@@ -131,7 +132,7 @@ public class PaymentService {
 
         Payment payment = found.get();
         if (payment.getStatus() == PaymentStatus.PAID) {
-            return paid(accountId, transactionId);
+            return paid(accountId, transactionId, payment);
         }
         if (payment.getStatus() == PaymentStatus.REJECTED) {
             return invalid(accountId, transactionId);
@@ -156,7 +157,7 @@ public class PaymentService {
         log.info("PayAnyWay: платёж {} оплачен (операция {}, тест: {}), подписка {} продлена до {}",
                 transactionId, operationId, payment.isTestMode(), payment.getUsername(), subscription.expiresAt());
 
-        return paid(accountId, transactionId);
+        return paid(accountId, transactionId, payment);
     }
 
     /** Подпись XML-ответа на уведомление. */
@@ -207,16 +208,22 @@ public class PaymentService {
         return url.encode(StandardCharsets.UTF_8).build().toUriString();
     }
 
+    /** Название позиции в чеке: услуга подписки на оплаченный срок. */
+    private static String receiptItem(Payment payment) {
+        return "Подписка TTG Club на " + payment.getMonths() + " мес.";
+    }
+
     private static String description(Payment payment) {
         return "Подписка TTG Club на " + payment.getMonths() + " мес. (" + payment.getUsername() + ")";
     }
 
-    private static PaymentNotificationResult paid(String accountId, String transactionId) {
-        return new PaymentNotificationResult(PaymentNotificationResult.PAID, accountId, transactionId);
+    private static PaymentNotificationResult paid(String accountId, String transactionId, Payment payment) {
+        PaymentReceipt receipt = new PaymentReceipt(payment.getEmail(), receiptItem(payment), payment.getAmount());
+        return new PaymentNotificationResult(PaymentNotificationResult.PAID, accountId, transactionId, receipt);
     }
 
     private static PaymentNotificationResult invalid(String accountId, String transactionId) {
-        return new PaymentNotificationResult(PaymentNotificationResult.INVALID_ORDER, accountId, transactionId);
+        return new PaymentNotificationResult(PaymentNotificationResult.INVALID_ORDER, accountId, transactionId, null);
     }
 
     private static Optional<UUID> parseUuid(String value) {

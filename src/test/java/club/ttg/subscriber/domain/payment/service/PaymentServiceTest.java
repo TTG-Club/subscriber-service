@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -141,6 +142,7 @@ class PaymentServiceTest {
                 .contains("MNT_SIGNATURE=" + signature)
                 .contains("MNT_SUCCESS_URL=https://dev.ttg.club/vttg/subscription?payment%3Dsuccess")
                 .doesNotContain(CODE + "&");
+        verify(paymentRepository).save(argThat(saved -> "hero@example.com".equals(saved.getEmail())));
     }
 
     @Test
@@ -156,6 +158,7 @@ class PaymentServiceTest {
     void paidNotificationExtendsSubscriptionOnce() {
         UUID id = UUID.randomUUID();
         Payment payment = payment(id, PaymentStatus.CREATED);
+        payment.setEmail("hero@example.com");
         when(paymentRepository.findForUpdate(id)).thenReturn(Optional.of(payment));
         stubPurchase();
         PaymentService service = service(true, true);
@@ -168,6 +171,9 @@ class PaymentServiceTest {
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PAID);
         assertThat(payment.getOperationId()).isEqualTo("987654");
         verify(subscriptionService).purchase("hero", 1);
+        assertThat(first.receipt()).isEqualTo(
+                new PaymentReceipt("hero@example.com", "Подписка TTG Club на 1 мес.", new BigDecimal("300.00")));
+        assertThat(repeated.receipt()).isEqualTo(first.receipt());
     }
 
     @Test

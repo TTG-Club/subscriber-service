@@ -37,6 +37,10 @@ public class Payment {
     @Column(nullable = false)
     private String username;
 
+    /** Почта пользователя на момент оплаты: на неё PayAnyWay отправляет чек. */
+    @Column
+    private String email;
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 

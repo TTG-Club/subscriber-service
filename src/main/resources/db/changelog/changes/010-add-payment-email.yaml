@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-add-payment-email
+      author: peterko
+      changes:
+        - addColumn:
+            schemaName: subscriber
+            tableName: payment
+            columns:
+              - column:
+                  name: email
+                  type: VARCHAR(255)
