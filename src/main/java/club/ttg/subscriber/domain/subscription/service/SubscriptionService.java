@@ -305,6 +305,7 @@ public class SubscriptionService {
 
     /**
      * Активирует накопленную подписку пользователя: фиксирует даты старта/окончания.
+     * Окончание отсчитывается от конца действующей подписки, если она есть.
      * Ролей сервис не выдаёт — доступ определяется по статусу подписки в реальном времени.
      */
     @Transactional
@@ -322,10 +323,11 @@ public class SubscriptionService {
 
         Instant now = Instant.now();
         Instant expiresBefore = currentExpiry(username, now);
+        // срок отсчитывается от конца действующей подписки (как у оплаты), иначе
+        // месяцы промокода шли бы параллельно оплаченным и сгорали
+        Instant base = expiresBefore == null ? now : expiresBefore;
         subscription.setStartsAt(now);
-        subscription.setExpiresAt(ZonedDateTime.ofInstant(now, ZoneOffset.UTC)
-                .plusMonths(subscription.getDurationMonths())
-                .toInstant());
+        subscription.setExpiresAt(plusMonths(base, subscription.getDurationMonths()));
         String code = subscription.getSourceCode() == null
                 ? null
                 : codeRepository.findById(subscription.getSourceCode()).map(RedemptionCode::getCode).orElse(null);

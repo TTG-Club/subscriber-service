@@ -18,6 +18,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Optional;
@@ -105,6 +107,28 @@ class SubscriptionServiceHistoryTest {
         assertThat(change.expiresBefore()).isEqualTo(expires);
         assertThat(change.expiresAfter()).isNull();
         assertThat(change.actorUsername()).isEqualTo("admin");
+    }
+
+    @Test
+    void activationExtendsFromEndOfActiveSubscription() {
+        Instant expires = Instant.now().plus(20, ChronoUnit.DAYS);
+        when(subscriptionRepository.findFirstByOwnerUsernameAndStartsAtIsNotNullAndExpiresAtAfterOrderByExpiresAtDesc(
+                eq("admin"), any())).thenReturn(Optional.of(activeSubscription(expires)));
+        UserSubscription fromCode = new UserSubscription();
+        fromCode.setType(SubscriptionType.GIFT);
+        fromCode.setDurationMonths(1);
+        fromCode.setOwnerUsername("admin");
+        UUID id = UUID.randomUUID();
+        when(subscriptionRepository.findById(id)).thenReturn(Optional.of(fromCode));
+
+        service.activate(id);
+
+        Instant expected = ZonedDateTime.ofInstant(expires, ZoneOffset.UTC).plusMonths(1).toInstant();
+        assertThat(fromCode.getExpiresAt()).isEqualTo(expected);
+        SubscriptionHistoryService.Change change = recordedChange();
+        assertThat(change.type()).isEqualTo(SubscriptionEventType.ACTIVATE);
+        assertThat(change.expiresBefore()).isEqualTo(expires);
+        assertThat(change.expiresAfter()).isEqualTo(expected);
     }
 
     @Test
