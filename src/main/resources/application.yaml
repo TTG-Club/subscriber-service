@@ -65,7 +65,6 @@ payanyway:
   integrity-code: ${PAYANYWAY_INTEGRITY_CODE:}
   form-url: ${PAYANYWAY_FORM_URL:https://www.payanyway.ru/assistant.htm}
   test-mode: ${PAYANYWAY_TEST_MODE:false}
-  admin-only: ${PAYANYWAY_ADMIN_ONLY:true}
   price: ${PAYANYWAY_PRICE:}
   max-months: ${PAYANYWAY_MAX_MONTHS:0}
   site-url: ${PAYANYWAY_SITE_URL:}

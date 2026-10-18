@@ -32,7 +32,8 @@ Docker-образ собирается по `Dockerfile` (multi-stage), депл
 - `GET  /api/rewards/me`, `GET /api/rewards/supporters`
 - `GET  /api/subscriptions/payments/terms` — цена месяца, валюта, предел срока и ступени скидки (их показывает окно покупки). Скидка за срок: от 3 мес. — 3%, от 6 — 6%, от 12 — 9%, от 36 мес. — 15% (пасхалка, на сайте не рекламируется; `SubscriptionDiscount`), сумму платежа считает только сервер
 - `POST /api/subscriptions/payments` — `{ "months": N, "email": "почта для чека" }` создать платёж на N месяцев и получить ссылку на форму PayAnyWay, которая сразу открывает экран оплаты картой (СБП там же отдельной кнопкой). Платить может только аккаунт с подтверждённой почтой и принятыми офертой и согласием на обработку ПД (проверка через `GET {AUTH_SERVICE_URL}/api/auth/me` с токеном пользователя)
-  (пока `PAYANYWAY_ADMIN_ONLY=true`, только для `ADMIN`)
+  (пока оплата не выключена в админке — иначе 503)
+- `GET  /api/subscriptions/payments/availability` — включена ли оплата (`{ "enabled": true }`), открыт без входа
 
 Админские (`@Secured("ADMIN")`):
 - `POST /api/subscriptions/codes`, `GET /api/subscriptions/codes`
@@ -73,7 +74,6 @@ Service-to-service (заголовок `X-Service-Token`, **без** JWT):
 | `PAYANYWAY_INTEGRITY_CODE`     | код проверки целостности данных из настроек счёта (секрет)                 |
 | `PAYANYWAY_FORM_URL`           | платёжная форма (по умолчанию `https://www.payanyway.ru/assistant.htm`, демо — `https://demo.moneta.ru/assistant.htm`) |
 | `PAYANYWAY_TEST_MODE`          | `true` — `MNT_TEST_MODE=1`, деньги не списываются (по умолчанию false: самозанятым тестовый режим недоступен) |
-| `PAYANYWAY_ADMIN_ONLY`         | `true` — платить могут только администраторы (по умолчанию true)          |
 | `PAYANYWAY_PRICE`              | цена одного месяца подписки в рублях, обязательна (без неё оплата выключена) |
 | `PAYANYWAY_MAX_MONTHS`         | сколько месяцев можно оплатить за раз (по умолчанию 0 — без ограничения)   |
 | `PAYANYWAY_SITE_URL`           | адрес сайта для возврата с формы оплаты, например `https://ttg.club`; возврат идёт на `/subscription?payment=success\|pending\|fail\|cancel` |
@@ -122,4 +122,7 @@ PayAnyWay присылает уведомление на Pay URL; сервис �
 - Check URL — пусто;
 - «Подпись формы оплаты обязательна» — включено;
 - «Можно переопределять настройки в URL» — включено (возврат на страницу подписки);
-- «Тестовый режим» — самозанятым недоступен: проверка идёт боевыми платежами при `PAYANYWAY_ADMIN_ONLY=true`.
+- «Тестовый режим» — самозанятым недоступен: проверка идёт боевыми платежами.
+
+Выключить оплату для всех — переключатель «Оплата подписки» на главной админки сайта
+(`PUT /api/admin/payments/availability`, `ADMIN`), без деплоя.

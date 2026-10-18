@@ -44,7 +44,6 @@ import java.util.UUID;
 public class PaymentService {
     private static final String CURRENCY = "RUB";
     private static final String SALES_DISABLED_MESSAGE = "Оплата подписки временно недоступна. Попробуйте позже.";
-    private static final String ADMIN_ROLE = "ADMIN";
     private static final String TEST_MODE_ON = "1";
     private static final String TEST_MODE_OFF = "0";
     private static final String SUBSCRIPTION_PAGE_PATH = "/subscription";
@@ -79,7 +78,6 @@ public class PaymentService {
      * умноженная на срок, со скидкой {@link SubscriptionDiscount}) и возвращает ссылку на платёжную форму. Автопродления нет.
      * Платить может только аккаунт с подтверждённой почтой и принятыми офертой и
      * согласием на обработку персональных данных (проверяется в auth-service).
-     * Пока включён {@code payanyway.admin-only}, платить могут только администраторы.
      * Выключенная в админке оплата ({@link PaymentAvailabilityService}) не пускает никого.
      *
      * @param request       срок и почта для чека
@@ -91,9 +89,6 @@ public class PaymentService {
         AuthUser user = SecurityUtils.getUser();
         if (!paymentAvailabilityService.isSalesEnabled()) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, SALES_DISABLED_MESSAGE);
-        }
-        if (settings.isAdminOnly() && !user.getRoles().contains(ADMIN_ROLE)) {
-            throw new ApiException(HttpStatus.FORBIDDEN, "Оплата пока доступна только администраторам");
         }
         if (!settings.isConfigured()) {
             throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, "Оплата временно недоступна");

@@ -62,13 +62,13 @@ class PaymentServiceTest {
         SecurityContextHolder.clearContext();
     }
 
-    private PaymentService service(boolean testMode, boolean adminOnly) {
-        return service(testMode, adminOnly, 0);
+    private PaymentService service(boolean testMode) {
+        return service(testMode, 0);
     }
 
-    private PaymentService service(boolean testMode, boolean adminOnly, int maxMonths) {
+    private PaymentService service(boolean testMode, int maxMonths) {
         PayAnyWaySettings settings = new PayAnyWaySettings(ACCOUNT, CODE,
-                "https://www.payanyway.ru/assistant.htm", testMode, adminOnly, new BigDecimal("300"), maxMonths,
+                "https://www.payanyway.ru/assistant.htm", testMode, new BigDecimal("300"), maxMonths,
                 "https://dev.ttg.club/");
         return new PaymentService(paymentRepository, subscriptionService, settings, accountClient, eventPublisher, availability);
     }
@@ -120,11 +120,11 @@ class PaymentServiceTest {
 
     @Test
     void termsExposeConfiguredPrice() {
-        assertThat(service(true, true).terms().monthPrice()).isEqualByComparingTo("300.00");
-        assertThat(service(true, true).terms().discounts())
+        assertThat(service(true).terms().monthPrice()).isEqualByComparingTo("300.00");
+        assertThat(service(true).terms().discounts())
                 .extracting(PaymentTermsResponse.Discount::percent).containsExactly(3, 6, 9);
-        assertThat(service(true, true).terms().maxMonths()).isNull();
-        assertThat(service(true, true, 12).terms().maxMonths()).isEqualTo(12);
+        assertThat(service(true).terms().maxMonths()).isNull();
+        assertThat(service(true, 12).terms().maxMonths()).isEqualTo(12);
     }
 
     @Test
@@ -132,7 +132,7 @@ class PaymentServiceTest {
         login("ADMIN");
         PaymentService noPrice = new PaymentService(paymentRepository, subscriptionService,
                 new PayAnyWaySettings(ACCOUNT, CODE, "https://www.payanyway.ru/assistant.htm",
-                        true, true, null, 0, "https://dev.ttg.club/"), accountClient, eventPublisher, availability);
+                        true, null, 0, "https://dev.ttg.club/"), accountClient, eventPublisher, availability);
 
         assertThatThrownBy(noPrice::terms).isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> noPrice.create(request(1), TOKEN)).isInstanceOf(ApiException.class);
@@ -145,7 +145,7 @@ class PaymentServiceTest {
         account(true, true);
         when(availability.isSalesEnabled()).thenReturn(false);
 
-        assertThatThrownBy(() -> service(true, false).create(request(1), TOKEN))
+        assertThatThrownBy(() -> service(true).create(request(1), TOKEN))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("временно недоступна");
         verify(paymentRepository, never()).save(any());
@@ -156,7 +156,7 @@ class PaymentServiceTest {
         login("USER", "ADMIN");
         account(false, true);
 
-        assertThatThrownBy(() -> service(true, true).create(request(1), TOKEN))
+        assertThatThrownBy(() -> service(true).create(request(1), TOKEN))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("Подтвердите почту");
         verify(paymentRepository, never()).save(any());
@@ -167,7 +167,7 @@ class PaymentServiceTest {
         login("USER", "ADMIN");
         account(true, false);
 
-        assertThatThrownBy(() -> service(true, true).create(request(1), TOKEN))
+        assertThatThrownBy(() -> service(true).create(request(1), TOKEN))
                 .isInstanceOf(ApiException.class)
                 .hasMessageContaining("оферты");
         verify(paymentRepository, never()).save(any());
@@ -178,16 +178,21 @@ class PaymentServiceTest {
         login("USER", "ADMIN");
         when(accountClient.currentAccount(TOKEN)).thenThrow(new IllegalStateException("down"));
 
-        assertThatThrownBy(() -> service(true, true).create(request(1), TOKEN)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service(true).create(request(1), TOKEN)).isInstanceOf(ApiException.class);
         verify(paymentRepository, never()).save(any());
     }
 
     @Test
-    void createRejectsNonAdminWhileAdminOnly() {
+    void createAllowedForRegularUser() {
         login("USER");
+        account(true, true);
+        when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
+            Payment saved = invocation.getArgument(0);
+            saved.setUuid(UUID.randomUUID());
+            return saved;
+        });
 
-        assertThatThrownBy(() -> service(true, true).create(request(1), TOKEN)).isInstanceOf(ApiException.class);
-        verify(paymentRepository, never()).save(any());
+        assertThat(service(true).create(request(1), TOKEN).paymentUrl()).isNotBlank();
     }
 
     @Test
@@ -202,7 +207,7 @@ class PaymentServiceTest {
 
         account(true, true);
 
-        CreatePaymentResponse response = service(true, true).create(request(3), TOKEN);
+        CreatePaymentResponse response = service(true).create(request(3), TOKEN);
 
         String signature = PayAnyWaySignature.request(ACCOUNT, id.toString(), "873.00", "RUB", null, "1", CODE);
         assertThat(response.testMode()).isTrue();
@@ -222,8 +227,8 @@ class PaymentServiceTest {
     void createRejectsTooManyMonths() {
         login("USER", "ADMIN");
 
-        assertThatThrownBy(() -> service(true, true, 12).create(request(13), TOKEN)).isInstanceOf(ApiException.class);
-        assertThatThrownBy(() -> service(true, true).create(request(0), TOKEN)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service(true, 12).create(request(13), TOKEN)).isInstanceOf(ApiException.class);
+        assertThatThrownBy(() -> service(true).create(request(0), TOKEN)).isInstanceOf(ApiException.class);
         verify(paymentRepository, never()).save(any());
     }
 
@@ -234,7 +239,7 @@ class PaymentServiceTest {
         payment.setEmail("hero@example.com");
         when(paymentRepository.findForUpdate(id)).thenReturn(Optional.of(payment));
         stubPurchase();
-        PaymentService service = service(true, true);
+        PaymentService service = service(true);
 
         PaymentNotificationResult first = service.handleNotification(notification(id, "300.00", "1"));
         PaymentNotificationResult repeated = service.handleNotification(notification(id, "300.00", "1"));
@@ -258,7 +263,7 @@ class PaymentServiceTest {
         Map<String, String> params = notification(id, "300.00", "1");
         params.put("MNT_SIGNATURE", "00000000000000000000000000000000");
 
-        assertThat(service(true, true).handleNotification(params).isFail()).isTrue();
+        assertThat(service(true).handleNotification(params).isFail()).isTrue();
         verify(subscriptionService, never()).purchase(anyString(), anyInt(), any());
     }
 
@@ -268,7 +273,7 @@ class PaymentServiceTest {
         Payment payment = payment(id, PaymentStatus.CREATED);
         when(paymentRepository.findForUpdate(id)).thenReturn(Optional.of(payment));
 
-        PaymentNotificationResult result = service(true, true).handleNotification(notification(id, "1.00", "1"));
+        PaymentNotificationResult result = service(true).handleNotification(notification(id, "1.00", "1"));
 
         assertThat(result.resultCode()).isEqualTo(PaymentNotificationResult.INVALID_ORDER);
         assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REJECTED);
@@ -280,7 +285,7 @@ class PaymentServiceTest {
         UUID id = UUID.randomUUID();
         when(paymentRepository.findForUpdate(id)).thenReturn(Optional.of(payment(id, PaymentStatus.CREATED)));
 
-        PaymentNotificationResult result = service(false, false).handleNotification(notification(id, "300.00", "1"));
+        PaymentNotificationResult result = service(false).handleNotification(notification(id, "300.00", "1"));
 
         assertThat(result.resultCode()).isEqualTo(PaymentNotificationResult.INVALID_ORDER);
         verify(subscriptionService, never()).purchase(anyString(), anyInt(), any());
@@ -291,7 +296,7 @@ class PaymentServiceTest {
         UUID id = UUID.randomUUID();
         when(paymentRepository.findForUpdate(id)).thenReturn(Optional.empty());
 
-        assertThat(service(true, true).handleNotification(notification(id, "300.00", "1")).resultCode())
+        assertThat(service(true).handleNotification(notification(id, "300.00", "1")).resultCode())
                 .isEqualTo(PaymentNotificationResult.INVALID_ORDER);
     }
 }
