@@ -1,0 +1,38 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-create-payment-settings
+      author: peterko
+      changes:
+        - createTable:
+            schemaName: subscriber
+            tableName: payment_settings
+            columns:
+              - column:
+                  name: id
+                  type: SMALLINT
+                  constraints:
+                    nullable: false
+                    primaryKey: true
+                    primaryKeyName: pk_payment_settings
+              - column:
+                  name: sales_enabled
+                  type: BOOLEAN
+                  defaultValueBoolean: true
+                  constraints:
+                    nullable: false
+              - column:
+                  name: updated_by
+                  type: VARCHAR(255)
+              - column:
+                  name: updated_at
+                  type: TIMESTAMP WITH TIME ZONE
+        - insert:
+            schemaName: subscriber
+            tableName: payment_settings
+            columns:
+              - column:
+                  name: id
+                  valueNumeric: 1
+              - column:
+                  name: sales_enabled
+                  valueBoolean: true

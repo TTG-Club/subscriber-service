@@ -2,7 +2,9 @@ package club.ttg.subscriber.domain.payment.rest.controller;
 
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentRequest;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentResponse;
+import club.ttg.subscriber.domain.payment.rest.dto.PaymentAvailabilityResponse;
 import club.ttg.subscriber.domain.payment.rest.dto.PaymentTermsResponse;
+import club.ttg.subscriber.domain.payment.service.PaymentAvailabilityService;
 import club.ttg.subscriber.domain.payment.service.PaymentNotificationResult;
 import club.ttg.subscriber.domain.payment.service.PaymentReceipt;
 import club.ttg.subscriber.domain.payment.service.PaymentService;
@@ -37,10 +39,19 @@ import java.util.Map;
 @RequestMapping("/api/subscriptions/payments")
 public class PaymentController {
     public static final String NOTIFICATION_PATH = "/api/subscriptions/payments/payanyway";
+    /** Включена ли оплата — читает кнопка покупки у любого посетителя, в том числе без входа. */
+    public static final String AVAILABILITY_PATH = "/api/subscriptions/payments/availability";
     /** Ставка НДС в чеке: «НДС не облагается» (самозанятый). */
     private static final int VAT_NOT_APPLICABLE = 1105;
 
     private final PaymentService paymentService;
+    private final PaymentAvailabilityService paymentAvailabilityService;
+
+    @Operation(summary = "Включена ли оплата подписки (выключатель в админке)")
+    @GetMapping("/availability")
+    public PaymentAvailabilityResponse availability() {
+        return new PaymentAvailabilityResponse(paymentAvailabilityService.isSalesEnabled());
+    }
 
     @Secured("USER")
     @Operation(summary = "Условия оплаты подписки: цена месяца, валюта, предел срока")

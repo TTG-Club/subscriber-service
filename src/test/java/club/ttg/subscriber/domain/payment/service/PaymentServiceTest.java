@@ -15,6 +15,7 @@ import club.ttg.subscriber.domain.subscription.service.SubscriptionService;
 import club.ttg.subscriber.exception.ApiException;
 import club.ttg.subscriber.security.AuthUser;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -49,6 +50,12 @@ class PaymentServiceTest {
     private final SubscriptionService subscriptionService = mock(SubscriptionService.class);
     private final AuthServiceAccountClient accountClient = mock(AuthServiceAccountClient.class);
     private final ApplicationEventPublisher eventPublisher = mock(ApplicationEventPublisher.class);
+    private final PaymentAvailabilityService availability = mock(PaymentAvailabilityService.class);
+
+    @BeforeEach
+    void enableSales() {
+        when(availability.isSalesEnabled()).thenReturn(true);
+    }
 
     @AfterEach
     void clearContext() {
@@ -63,7 +70,7 @@ class PaymentServiceTest {
         PayAnyWaySettings settings = new PayAnyWaySettings(ACCOUNT, CODE,
                 "https://www.payanyway.ru/assistant.htm", testMode, adminOnly, new BigDecimal("300"), maxMonths,
                 "https://dev.ttg.club/");
-        return new PaymentService(paymentRepository, subscriptionService, settings, accountClient, eventPublisher);
+        return new PaymentService(paymentRepository, subscriptionService, settings, accountClient, eventPublisher, availability);
     }
 
     private static CreatePaymentRequest request(int months) {
@@ -125,10 +132,22 @@ class PaymentServiceTest {
         login("ADMIN");
         PaymentService noPrice = new PaymentService(paymentRepository, subscriptionService,
                 new PayAnyWaySettings(ACCOUNT, CODE, "https://www.payanyway.ru/assistant.htm",
-                        true, true, null, 0, "https://dev.ttg.club/"), accountClient, eventPublisher);
+                        true, true, null, 0, "https://dev.ttg.club/"), accountClient, eventPublisher, availability);
 
         assertThatThrownBy(noPrice::terms).isInstanceOf(ApiException.class);
         assertThatThrownBy(() -> noPrice.create(request(1), TOKEN)).isInstanceOf(ApiException.class);
+        verify(paymentRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectedWhileSalesDisabled() {
+        login("USER", "ADMIN");
+        account(true, true);
+        when(availability.isSalesEnabled()).thenReturn(false);
+
+        assertThatThrownBy(() -> service(true, false).create(request(1), TOKEN))
+                .isInstanceOf(ApiException.class)
+                .hasMessageContaining("временно недоступна");
         verify(paymentRepository, never()).save(any());
     }
 

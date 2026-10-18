@@ -1,5 +1,6 @@
 package club.ttg.subscriber.domain.payment.rest.controller;
 
+import club.ttg.subscriber.domain.payment.service.PaymentAvailabilityService;
 import club.ttg.subscriber.domain.payment.service.PaymentNotificationResult;
 import club.ttg.subscriber.domain.payment.service.PaymentReceipt;
 import club.ttg.subscriber.domain.payment.service.PaymentService;
@@ -15,7 +16,8 @@ import static org.mockito.Mockito.when;
 
 class PaymentControllerTest {
     private final PaymentService paymentService = mock(PaymentService.class);
-    private final PaymentController controller = new PaymentController(paymentService);
+    private final PaymentAvailabilityService availability = mock(PaymentAvailabilityService.class);
+    private final PaymentController controller = new PaymentController(paymentService, availability);
 
     @Test
     void paidResponseCarriesReceiptForCustomer() {
@@ -42,5 +44,12 @@ class PaymentControllerTest {
         when(paymentService.responseSignature(result)).thenReturn("sig");
 
         assertThat(controller.notification(Map.of()).getBody()).doesNotContain("MNT_ATTRIBUTES");
+    }
+
+    @Test
+    void availabilityReflectsSwitch() {
+        when(availability.isSalesEnabled()).thenReturn(false);
+
+        assertThat(controller.availability().enabled()).isFalse();
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -182,6 +183,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/internal/**").permitAll()
                         // Уведомление об оплате приходит от PayAnyWay без JWT и проверяется подписью.
                         .requestMatchers(PaymentController.NOTIFICATION_PATH).permitAll()
+                        // Состояние выключателя оплаты нужно кнопке покупки и до входа.
+                        .requestMatchers(HttpMethod.GET, PaymentController.AVAILABILITY_PATH).permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(internalServiceTokenFilter, UsernamePasswordAuthenticationFilter.class)

@@ -43,6 +43,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PaymentService {
     private static final String CURRENCY = "RUB";
+    private static final String SALES_DISABLED_MESSAGE = "Оплата подписки временно недоступна. Попробуйте позже.";
     private static final String ADMIN_ROLE = "ADMIN";
     private static final String TEST_MODE_ON = "1";
     private static final String TEST_MODE_OFF = "0";
@@ -55,6 +56,7 @@ public class PaymentService {
     private final PayAnyWaySettings settings;
     private final AuthServiceAccountClient authServiceAccountClient;
     private final ApplicationEventPublisher eventPublisher;
+    private final PaymentAvailabilityService paymentAvailabilityService;
 
     /** Текущие условия оплаты: цена месяца, валюта, предел срока и ступени скидки. */
     public PaymentTermsResponse terms() {
@@ -78,6 +80,7 @@ public class PaymentService {
      * Платить может только аккаунт с подтверждённой почтой и принятыми офертой и
      * согласием на обработку персональных данных (проверяется в auth-service).
      * Пока включён {@code payanyway.admin-only}, платить могут только администраторы.
+     * Выключенная в админке оплата ({@link PaymentAvailabilityService}) не пускает никого.
      *
      * @param request       срок и почта для чека
      * @param authorization заголовок авторизации пользователя — для запроса в auth-service
@@ -86,6 +89,9 @@ public class PaymentService {
     public CreatePaymentResponse create(CreatePaymentRequest request, String authorization) {
         int months = request.months();
         AuthUser user = SecurityUtils.getUser();
+        if (!paymentAvailabilityService.isSalesEnabled()) {
+            throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, SALES_DISABLED_MESSAGE);
+        }
         if (settings.isAdminOnly() && !user.getRoles().contains(ADMIN_ROLE)) {
             throw new ApiException(HttpStatus.FORBIDDEN, "Оплата пока доступна только администраторам");
         }
