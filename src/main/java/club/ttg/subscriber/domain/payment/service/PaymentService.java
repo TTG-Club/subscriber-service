@@ -6,6 +6,7 @@ import club.ttg.subscriber.client.AuthServiceMailClient.SubscriptionPaidMail;
 import club.ttg.subscriber.domain.payment.model.Payment;
 import club.ttg.subscriber.domain.payment.model.PaymentStatus;
 import club.ttg.subscriber.domain.payment.repository.PaymentRepository;
+import club.ttg.subscriber.domain.payment.rest.dto.AdminPaymentResponse;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentRequest;
 import club.ttg.subscriber.domain.payment.rest.dto.CreatePaymentResponse;
 import club.ttg.subscriber.domain.payment.rest.dto.PaymentTermsResponse;
@@ -71,6 +72,26 @@ public class PaymentService {
                         .toList(),
                 List.of(new PaymentTermsResponse.Discount(
                         SubscriptionDiscount.EASTER_EGG.fromMonths(), SubscriptionDiscount.EASTER_EGG.percent())));
+    }
+
+    /** Все платежи для админской статистики покупок (новые сверху). */
+    @Transactional(readOnly = true)
+    public List<AdminPaymentResponse> allPayments() {
+        return paymentRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(payment -> new AdminPaymentResponse(
+                        payment.getUuid(),
+                        payment.getUsername(),
+                        payment.getEmail(),
+                        payment.getAmount(),
+                        payment.getCurrency(),
+                        payment.getMonths(),
+                        payment.getStatus(),
+                        payment.isTestMode(),
+                        payment.getOperationId(),
+                        payment.getSubscriptionUuid(),
+                        payment.getPaidAt(),
+                        payment.getCreatedAt()))
+                .toList();
     }
 
     /**
